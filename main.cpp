@@ -244,7 +244,7 @@ int main() {
             } 
         }
 
-        int num_steps_per_loop = 1;
+        int num_steps_per_loop = 10;
         for( int i = 0; i < num_steps_per_loop; i++)
         {
             update(1.0/(float)num_steps_per_loop);
