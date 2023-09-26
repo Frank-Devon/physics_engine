@@ -3,6 +3,7 @@
 #include "vector.hpp"
 #include "physics.hpp"
 
+// todo: this file needs to be cleaned up
 var_type Ball::restitution = 1.0;
 
 void Ball::integrate(var_type duration) {
