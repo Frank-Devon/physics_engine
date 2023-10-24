@@ -10,53 +10,25 @@ void spring_draw(Vector2 start, Vector2 end, var_type rest_length);
 
 Ball::Ball(Vector2 pos, Vector2 vel, Vector2 acc,
         var_type radius, var_type mass_inverse, var_type elasticity) 
-        : pos(pos), vel(vel), acc(acc),
-          radius(radius), mass_inverse(mass_inverse), elasticity(elasticity) 
+        : pos(pos), vel(vel), acc(acc), radius(radius), 
+          mass_inverse(mass_inverse), elasticity(elasticity) 
 {
     force_accumulator = Vector2(0.0, 0.0);
 }
 
-//void Ball::integrate(var_type duration) {
-//    //vel = vel + duration * acc;
-//    //pos = pos + duration * vel;
-//    
-//    // new integrate
-//    pos = pos + duration * vel;
-//
-//    // determine acceleration from all combining all the forces acting on this ball.
-//    acc = acc + mass_inverse * force_accumulator;
-//
-//    vel = vel + duration * acc;
-//
-//    // reduce magnitude of velocity to improve stability
-//    vel = powf(0.99995, duration) * vel;
-//    force_accumulator = Vector2(0.0, 0.0);
-//    acc = Vector2(0.0, 0.0);
-//}
-
-void Ball::integrate(var_type duration) {
+void Ball::integrate(var_type duration) 
+{
+    // implicit euler method
     // determine acceleration from all combining all the forces acting on this ball.
-    //acc = mass_inverse * force_accumulator;
-    vel = vel + duration * (acc + mass_inverse * force_accumulator);//acc;
+    vel = vel + duration * (acc + mass_inverse * force_accumulator);
     pos = pos + duration * vel;
-
-    //acc = mass_inverse * force_accumulator;
-    //vel = vel + duration * acc;
-    //pos = pos + duration * vel;
-    // reduce magnitude of velocity to improve stability
-    //vel = powf(0.99995, duration) * vel;
     force_accumulator = Vector2(0.0, 0.0);
 }
 
-void Ball::collides_ball(Ball& b) {
-
-    //TODO ball-ball collisions cause change in energy
-    // check if in collision, then immediately fix velocity and position
-    //Ball& a = this;
-    // ball b is the objecting
+void Ball::collides_ball(Ball& b) 
+{
     Vector2 pos_relative = b.pos - pos;
     var_type penetration = radius + b.radius - pos_relative.magnitude();
-     
     if (penetration > 0) {
         // objects are penetrating
         Vector2 new_vel(0.0, 0.0);
@@ -81,9 +53,6 @@ void Ball::collides_ball(Ball& b) {
         Vector2 delta_b = mass * b.vel.unit() / mass_sum;
         pos += delta;
         b.pos += delta_b;
-
-
-
         //std::cout << "howdy" << penetration << std::endl;
     }
     else {
@@ -91,47 +60,12 @@ void Ball::collides_ball(Ball& b) {
     }
 }
 
-//void Ball::collides_ball_old(Ball& b) {
-//    // check if in collision, then immediately fix velocity and position
-//    //Ball& a = this;
-//    // ball b is the objecting
-//    Vector2 pos_relative = b.pos - pos;
-//    var_type penetration = radius + b.radius - pos_relative.magnitude();
-//     
-//    if (penetration > 0) {
-//        // objects are penetrating
-//        Vector2 new_vel(0.0, 0.0);
-//        Vector2 b_new_vel(0.0, 0.0);
-//        var_type mass = 1.0/mass_inverse;
-//        var_type b_mass = 1.0/b.mass_inverse;
-//        new_vel = (mass * vel + b_mass * b.vel - b_mass * restitution * vel
-//            + b_mass * restitution * b.vel) / ( mass + b_mass);
-//        b_new_vel = (mass * vel + b_mass * b.vel - mass * restitution * b.vel
-//            + mass * restitution * vel) / ( mass + b_mass);
-//        // assign new velocities
-//        vel = new_vel;
-//        b.vel = b_new_vel;
-//        // solve interpenetrations
-//        Vector2 normal_contact = pos_relative.unit();
-//        Vector2 delta = b_mass * normal_contact / (mass + b_mass);
-//        Vector2 delta_b = mass *  normal_contact / (mass + b_mass);
-//        pos += delta;
-//        b.pos += delta_b;
-//
-//        //std::cout << "howdy" << penetration << std::endl;
-//    }
-//    else {
-//        //std::cout << "pen: " << penetration << std::endl;
-//    }
-//}
-
-void Ball::collides_edge(const Edge& edge) {
-
+void Ball::collides_edge(const Edge& edge) 
+{
     // P S E are 2d Vectors (Vec2)
     // P = center of ball
     // S = start of edge
     // E = end of edge
-    //Vec2 PS = Vec2_sub(&edge->start, &ball->pos); 
     Vector2 PS = this->pos - edge.start;   //Vec2_sub(&ball->pos, &edge->start); 
     Vector2 SE = edge.end - edge.start; //edge.start - edge.end;   //Vec2_sub(&edge->end, &edge->start);
 
@@ -254,16 +188,14 @@ void GravityForceGenerator::draw(Ball* ball, var_type duration) { }
 
 void ParticleForceRegistry::update_all(var_type duration)
 {
-    for(auto& registry : registrations)
-    {
+    for(auto& registry : registrations) {
         registry.force_generator->update(registry.ball, duration);
     }
 }
 
 void ParticleForceRegistry::draw_all(var_type duration)
 {
-    for(auto& registry : registrations)
-    {
+    for(auto& registry : registrations) {
         registry.force_generator->draw(registry.ball, duration);
     }
 }
@@ -364,7 +296,7 @@ void ContactResolver::set_iterations(unsigned int iterations_max)
 
 void ContactResolver::resolve_contacts(Contact* contacts, unsigned int num_contacts, var_type duration)
 {
-    
+//TODO
 }
 
 // private function
@@ -408,23 +340,6 @@ void spring_draw(Vector2 start, Vector2 end, var_type rest_length)
     //
     // draw spring from data determined above
     //
-    
-    //// max green value for extension
-    //int green_max = 250;
-    //// max red for compression
-    //int red_max = 250;
-    //// current values for green and red
-    //int green = 0; int red = 0;
-    //green = ( length > rest_length ) ? length - rest_length : 15;
-    //red = ( length < rest_length ) ? rest_length - length : 15;
-    //// make sure green and red values don't exceed max
-    //green = min(green, green_max);
-    //red = min(red, red_max);
-    //// set draw color in SDL
-    //SDL_SetRenderDrawColor(gsdl.renderer, red, green, 0, 0);
-
-
-    
     int displacement = length - rest_length;
     if (displacement > 250) displacement = 250;
     else if (displacement < -250) displacement = -250;
@@ -434,12 +349,6 @@ void spring_draw(Vector2 start, Vector2 end, var_type rest_length)
     else red = red - displacement;
     
     SDL_SetRenderDrawColor(gsdl.renderer, red, green, 30, 0);
-
-
-
-
-
-
 
 
     //// drawing the "spring" as a straight wire
