@@ -52,6 +52,10 @@ var_type Vector2::dot(const Vector2& a) const {
     return sum;
 }
 
+var_type Vector2::dot(const Vector2& a, const Vector2& b) {
+    return a.x * b.x + a.y * b.y;     
+}
+
 var_type Vector2::magnitude() const {
     return sqrt(pow(x,2.0) + pow(y, 2.0));
 }
