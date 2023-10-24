@@ -1,5 +1,5 @@
 # physics_engine
-This is a very rough physics simulation. Particles, mass, any-angle edges, and collisions are simulated. More to come soon.
+This is a physics simulation. Particles, mass, springs, bungees any-angle edges, and collisions are simulated. More to come.
 
 Requires SDL2, SDL_image, SDL_ttf libraries. Static linking is used.
 Compiles on linux with:
@@ -13,3 +13,4 @@ Bugs
 - Manually moving a ball into another ball can cause issues.
 
 These bugs will be fixed with the collision detection/resolution overhaul.
+The next release will simulate rods and cables.
