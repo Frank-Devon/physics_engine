@@ -87,14 +87,8 @@ render(var_type duration)
     }
 
     //
-    // render spring
+    // render force generators in the "registry"
     //
-    //spring_draw(balls[0].pos, balls[1].pos, 300);
-    //
-    // render anchored springs
-    //
-    //Vector2 anchor = Vector2(300.0, 300.0);
-    //spring_draw(balls[0].pos, anchor, 250.0);
     particle_force_registry.draw_all(duration);
 
     // print total energy to screen
