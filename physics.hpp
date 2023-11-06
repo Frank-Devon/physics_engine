@@ -80,13 +80,13 @@ public:
 
 
 //should be named BungieAnchoredForceGenerator
-class BungieForceGenerator : public ParticleForceGenerator {
+class BungeeForceGenerator : public ParticleForceGenerator {
 private:
     Vector2* anchor_position;  // anchor could be attached to another ball?
     var_type rest_length;
     var_type spring_constant;
 public:
-    BungieForceGenerator(Vector2* anchor_position, var_type rest_length, var_type spring_constant);
+    BungeeForceGenerator(Vector2* anchor_position, var_type rest_length, var_type spring_constant);
     virtual void update(Ball* ball, var_type duration);
     virtual void draw(Ball* ball, var_type duration);
 };
@@ -129,9 +129,9 @@ public:
     var_type restitution;
     var_type penetration;
     Vector2 movement[2];
-protected:
-    void resolve(var_type duration);
     var_type seperating_speed_calculate() const;
+    void resolve(var_type duration);
+protected:
 private:
     void resolve_interpenetration(var_type duration);  
     void resolve_velocity(var_type duration);
@@ -145,27 +145,44 @@ protected:
 public:
     ContactResolver(unsigned int iterations_max);
     void set_iterations(unsigned int iterations_max);
-    void resolve_contacts(Contact* contacts, unsigned int num_contacts, var_type duration);
+    void resolve_contacts(std::vector<Contact>& contacts, var_type duration);
 };
 
 
 class ContactGenerator {
 public:
-    virtual unsigned generate_contact(Contact* contact, unsigned limit) = 0;
+    virtual unsigned int generate_contact(std::vector<Contact>& contacts, unsigned limit) = 0;
+    virtual void draw() = 0;
 };
 
 
-//class PhysicsElement {
-//public:
-//    virtual void draw() = 0;
-//};
-//
-//class Spring : public PhysicsDraw {
-//private:
-//
-//public:
-//    virtual void draw();
-//};
+class ParticleLink : public ContactGenerator {
+public:
+    Ball* balls[2];
+    virtual unsigned int generate_contact(std::vector<Contact>& contacts, unsigned limit) = 0;
+    virtual void draw() = 0;
+protected:
+    var_type length_current_calculate() const;
+};
+
+
+class Rod : public ParticleLink {
+public:
+    var_type length;
+    Rod(var_type length);
+    virtual unsigned int generate_contact(std::vector<Contact>& contacts, unsigned limit);
+    virtual void draw();
+};
+
+
+class Cable : public ParticleLink {
+public:
+    var_type length_max;
+    var_type restitution;
+    Cable(var_type length_max, var_type restitution);
+    virtual unsigned int generate_contact(std::vector<Contact>& contacts, unsigned limit);
+    virtual void draw();
+};
 
 
 void spring_draw(Vector2 start, Vector2 end, var_type rest_length);

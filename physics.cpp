@@ -1,5 +1,6 @@
 #include <cmath>
 #include <iostream>
+#include <limits>
 #include "vector.hpp"
 #include "physics.hpp"
 #include "sdl_init.hpp" // this allows draw functions to be called
@@ -10,26 +11,32 @@ void spring_draw(Vector2 start, Vector2 end, var_type rest_length);
 
 Ball::Ball(Vector2 pos, Vector2 vel, Vector2 acc,
         var_type radius, var_type mass_inverse, var_type elasticity) 
-        : pos(pos), vel(vel), acc(acc), radius(radius), 
-          mass_inverse(mass_inverse), elasticity(elasticity) 
+        : pos(pos), vel(vel), acc(acc),
+          radius(radius), mass_inverse(mass_inverse), elasticity(elasticity) 
 {
     force_accumulator = Vector2(0.0, 0.0);
 }
 
-void Ball::integrate(var_type duration) 
-{
-    // implicit euler method
+void Ball::integrate(var_type duration) {
     // determine acceleration from all combining all the forces acting on this ball.
-    vel = vel + duration * (acc + mass_inverse * force_accumulator);
+    //acc = mass_inverse * force_accumulator;
+    vel = vel + duration * (acc + mass_inverse * force_accumulator);//acc;
     pos = pos + duration * vel;
-    force_accumulator = Vector2(0.0, 0.0);
+
+    // reduce magnitude of velocity to improve stability
+    //vel = powf(0.99995, duration) * vel;
+    //force_accumulator = Vector2(0.0, 0.0);
 }
 
-// checks if balls have collided then fixes position and velocity. 
-void Ball::collides_ball(Ball& b) 
-{
+void Ball::collides_ball(Ball& b) {
+
+    //TODO ball-ball collisions cause change in energy
+    // check if in collision, then immediately fix velocity and position
+    //Ball& a = this;
+    // ball b is the objecting
     Vector2 pos_relative = b.pos - pos;
     var_type penetration = radius + b.radius - pos_relative.magnitude();
+     
     if (penetration > 0) {
         // objects are penetrating
         Vector2 new_vel(0.0, 0.0);
@@ -42,6 +49,10 @@ void Ball::collides_ball(Ball& b)
         var_type distance_squared = pow(pos_relative.magnitude(), 2.0);
         new_vel = vel - (2.0 * b_mass / mass_sum) * (dot_0 / distance_squared) * (pos - b.pos); 
         b_new_vel = b.vel - (2.0 * mass / mass_sum) * (dot_1 / distance_squared) * (b.pos - pos); 
+        //new_vel = (mass * vel + b_mass * b.vel - b_mass * restitution * vel
+        //    + b_mass * restitution * b.vel) / ( mass + b_mass);
+        //b_new_vel = (mass * vel + b_mass * b.vel - mass * restitution * b.vel
+        //    + mass * restitution * vel) / ( mass + b_mass);
         // assign new velocities
         vel = new_vel;
         b.vel = b_new_vel;
@@ -50,6 +61,9 @@ void Ball::collides_ball(Ball& b)
         Vector2 delta_b = mass * b.vel.unit() / mass_sum;
         pos += delta;
         b.pos += delta_b;
+
+
+
         //std::cout << "howdy" << penetration << std::endl;
     }
     else {
@@ -57,13 +71,47 @@ void Ball::collides_ball(Ball& b)
     }
 }
 
-// checks if ball has collided with edge then fixes position and velocity
-void Ball::collides_edge(const Edge& edge) 
-{
+//void Ball::collides_ball_old(Ball& b) {
+//    // check if in collision, then immediately fix velocity and position
+//    //Ball& a = this;
+//    // ball b is the objecting
+//    Vector2 pos_relative = b.pos - pos;
+//    var_type penetration = radius + b.radius - pos_relative.magnitude();
+//     
+//    if (penetration > 0) {
+//        // objects are penetrating
+//        Vector2 new_vel(0.0, 0.0);
+//        Vector2 b_new_vel(0.0, 0.0);
+//        var_type mass = 1.0/mass_inverse;
+//        var_type b_mass = 1.0/b.mass_inverse;
+//        new_vel = (mass * vel + b_mass * b.vel - b_mass * restitution * vel
+//            + b_mass * restitution * b.vel) / ( mass + b_mass);
+//        b_new_vel = (mass * vel + b_mass * b.vel - mass * restitution * b.vel
+//            + mass * restitution * vel) / ( mass + b_mass);
+//        // assign new velocities
+//        vel = new_vel;
+//        b.vel = b_new_vel;
+//        // solve interpenetrations
+//        Vector2 normal_contact = pos_relative.unit();
+//        Vector2 delta = b_mass * normal_contact / (mass + b_mass);
+//        Vector2 delta_b = mass *  normal_contact / (mass + b_mass);
+//        pos += delta;
+//        b.pos += delta_b;
+//
+//        //std::cout << "howdy" << penetration << std::endl;
+//    }
+//    else {
+//        //std::cout << "pen: " << penetration << std::endl;
+//    }
+//}
+
+void Ball::collides_edge(const Edge& edge) {
+
     // P S E are 2d Vectors (Vec2)
     // P = center of ball
     // S = start of edge
     // E = end of edge
+    //Vec2 PS = Vec2_sub(&edge->start, &ball->pos); 
     Vector2 PS = this->pos - edge.start;   //Vec2_sub(&ball->pos, &edge->start); 
     Vector2 SE = edge.end - edge.start; //edge.start - edge.end;   //Vec2_sub(&edge->end, &edge->start);
 
@@ -105,7 +153,8 @@ Edge::Edge(Vector2 start, Vector2 end) : start(start), end(end)
     normal = tangent.perpendicular();
 }
 
-Vector2 Collision::reflect(const Vector2& a, const Edge& edge)
+    Vector2 
+Collision::reflect(const Vector2& a, const Edge& edge)
 {
     var_type v_dot_t = a.dot(edge.tangent); //(Vec2_dot_product(a, &edge->tangent));
     var_type v_dot_n = a.dot(edge.normal);//(Vec2_dot_product(a, &edge->normal));
@@ -113,15 +162,18 @@ Vector2 Collision::reflect(const Vector2& a, const Edge& edge)
     Vector2 tangent = edge.tangent;  // might be adjusted
     if (v_dot_n > 0) {
         v_dot_n = -1.0 * v_dot_n;
-        normal = - edge.normal; 
+        normal = - edge.normal; //Vec2_scale(&normal, -1.0);
     }
     if (v_dot_t < 0) {
         v_dot_t = -1.0 * v_dot_t;
-        tangent = -1.0 * tangent; 
+        tangent = -1.0 * tangent; //Vec2_scale(&tangent, -1.0);
     }
-    Vector2 v_dot_t_vec = v_dot_t * tangent; 
-    Vector2 v_dot_n_vec = v_dot_n * normal ;  
-    Vector2 result = v_dot_t_vec - v_dot_n_vec; 
+    //printf("--- v_dot_t and n: %f, %f\n", v_dot_t, v_dot_n);
+    Vector2 v_dot_t_vec = v_dot_t * tangent;  //Vec2_scale(&tangent, v_dot_t);
+    Vector2 v_dot_n_vec = v_dot_n * normal ;  //Vec2_scale(&normal, v_dot_n);
+    //printf("--- v_dot_t_vec and n: %f, %f\n", v_dot_t_vec, v_dot_n_vec);
+    Vector2 result = v_dot_t_vec - v_dot_n_vec; //Vec2_sub(&v_dot_t_vec, &v_dot_n_vec);
+    //printf("--- result: %f, %f\n", result.x, result.y);
     return result;
 }
 
@@ -194,11 +246,11 @@ void ParticleForceRegistry::draw_all(var_type duration)
     }
 }
 
-BungieForceGenerator::BungieForceGenerator(Vector2* anchor_position, var_type rest_length, var_type spring_constant)
+BungeeForceGenerator::BungeeForceGenerator(Vector2* anchor_position, var_type rest_length, var_type spring_constant)
 : anchor_position(anchor_position), rest_length(rest_length), spring_constant(spring_constant)
 { }
 
-void BungieForceGenerator::update(Ball* ball, var_type duration)
+void BungeeForceGenerator::update(Ball* ball, var_type duration)
 {
     // get vector representing relative position of strinunsigned
     Vector2 bungie_vector = ball->pos - *anchor_position;
@@ -212,10 +264,11 @@ void BungieForceGenerator::update(Ball* ball, var_type duration)
     ball->force_accumulator += force;
 }
 
-void BungieForceGenerator::draw(Ball* ball, var_type duration) 
+void BungeeForceGenerator::draw(Ball* ball, var_type duration) 
 {
     SDL_SetRenderDrawColor(gsdl.renderer, 128, 200, 0, 0);
-    SDL_RenderDrawLine(gsdl.renderer, ball->pos.x, ball->pos.y, anchor_position->x, anchor_position->y);
+    SDL_RenderDrawLine(gsdl.renderer, ball->pos.x, ball->pos.y, 
+                       anchor_position->x, anchor_position->y);
 }
 
 void ParticleForceRegistry::add(Ball* ball, ParticleForceGenerator* fg)
@@ -246,10 +299,10 @@ void ParticleForceRegistry::clear()
 
 void Contact::resolve(var_type duration)
 {
-    resolve_interpenetration(duration);
     resolve_velocity(duration);
+    resolve_interpenetration(duration);
 }
-
+ 
 var_type Contact::seperating_speed_calculate() const
 {
     //if (!ball[1]) return ball[0]->vel; // in case theres no 2nd ball
@@ -264,18 +317,109 @@ var_type Contact::seperating_speed_calculate() const
     //}
     // alternatively 
     Vector2 vel_rel = ball[0]->vel;
-    if (!ball[1]) vel_rel = vel_rel - ball[1]->vel;
+    if (ball[1]) vel_rel = vel_rel - ball[1]->vel;
     return Vector2::dot(contact_normal, vel_rel);
 }
 
-void Contact::resolve_interpenetration(var_type duration)
+void
+Contact::resolve_interpenetration(var_type duration)
 {
-//TODO    
+    if (penetration < 0.0) return;
+    var_type mass_inverse_total = ball[0]->mass_inverse;
+    if (ball[1]) mass_inverse_total += ball[1]->mass_inverse;
+    if (mass_inverse_total <= 0.0) return; // impluses won't effect two immovable objects
+    Vector2 mass_penetration = (penetration / mass_inverse_total) * contact_normal;
+    movement[0] = ball[0]->mass_inverse * mass_penetration;
+    if (ball[1]) {
+        movement[1] = -ball[1]->mass_inverse * mass_penetration;
+    } 
+    // apply movements
+    ball[0]->pos += movement[0];
+    if (ball[1]) ball[1]->pos += movement[1];
+    // clearing movements, probably not necessary
+    movement[0].x = 0.0;
+    movement[0].y = 0.0;
+    movement[1].x = 0.0;
+    movement[1].y = 0.0;
 }
 
-void Contact::resolve_velocity(var_type duration)
+
+void
+Contact::resolve_velocity(var_type duration)
 {
-//TODO
+    var_type seperating_speed = seperating_speed_calculate();
+    if (seperating_speed > 0.0) return;
+
+    // find new seperating velocity
+    var_type new_seperating_speed = -1.0 * restitution * seperating_speed;
+    // find velocity due to acceleration this frame 
+    Vector2 vel_from_acc = ball[0]->acc;
+    if (ball[1]) vel_from_acc -= ball[1]->acc;
+    var_type sep_speed_from_acc = duration * Vector2::dot(contact_normal, vel_from_acc);
+
+    // did acceleration contribute to a closing a velocity? if so, subtract it.
+    if (sep_speed_from_acc < 0.0) {
+        new_seperating_speed += restitution * sep_speed_from_acc;
+        if (new_seperating_speed < 0.0) new_seperating_speed = 0.0;
+    }
+
+    var_type vel_delta = new_seperating_speed - seperating_speed;
+
+    var_type mass_inverse_total = ball[0]->mass_inverse;
+    if (ball[1]) mass_inverse_total += ball[1]->mass_inverse;
+
+    if (mass_inverse_total <= 0.0) return; // impluses won't effect two immovable objects
+    var_type impulse = vel_delta / mass_inverse_total;
+    Vector2 impulse_per_mass_inverse = impulse * contact_normal;  
+
+    ball[0]->vel += ball[0]->mass_inverse * impulse_per_mass_inverse;
+    if (ball[1]) ball[1]->vel += - ball[1]->mass_inverse * impulse_per_mass_inverse;
+
+
+
+
+
+
+
+    //// lots of redundancy... reduce some?
+    //Ball a = *ball[0];
+    //Ball b = *ball[1];
+    //Vector2 pos_relative = b.pos - a.pos;
+    ////var_type penetration = a.radius + b.radius - pos_relative.magnitude();
+    // 
+    //if (penetration > 0) {
+    //    // objects are penetrating
+    //    // glancing aka 2d collision math (not the familiar 1d collision)
+    //    Vector2 new_vel(0.0, 0.0);
+    //    Vector2 b_new_vel(0.0, 0.0);
+    //    var_type mass = 1.0/a.mass_inverse;
+    //    var_type b_mass = 1.0/b.mass_inverse;
+    //    var_type mass_sum = mass + b_mass;
+    //    var_type dot_0 = Vector2::dot( a.vel - b.vel, a.pos - b.pos);
+    //    var_type dot_1 = Vector2::dot( b.vel - a.vel, b.pos - a.pos);
+    //    var_type distance_squared = pow(pos_relative.magnitude(), 2.0);
+    //    new_vel = a.vel - (2.0 * b_mass / mass_sum) * (dot_0 / distance_squared) * (a.pos - b.pos); 
+    //    b_new_vel = b.vel - (2.0 * mass / mass_sum) * (dot_1 / distance_squared) * (b.pos - a.pos); 
+    //    //new_vel = (mass * vel + b_mass * b.vel - b_mass * restitution * vel
+    //    //    + b_mass * restitution * b.vel) / ( mass + b_mass);
+    //    //b_new_vel = (mass * vel + b_mass * b.vel - mass * restitution * b.vel
+    //    //    + mass * restitution * vel) / ( mass + b_mass);
+    //    // assign new velocities
+    //    a.vel = new_vel;
+    //    b.vel = b_new_vel;
+    //    //// solve interpenetrations
+    //    // Vector2 delta   = b_mass * a.vel.unit() / mass_sum;
+    //    // Vector2 delta_b = mass * b.vel.unit() / mass_sum;
+    //    //a.pos += delta;
+    //    //b.pos += delta_b;
+
+
+
+    //    //std::cout << "howdy" << penetration << std::endl;
+    //}
+    //else {
+    //    //std::cout << "pen: " << penetration << std::endl;
+    //}
 }
 
 ContactResolver::ContactResolver(unsigned int iterations_max) : iterations_max(iterations_max)
@@ -288,9 +432,107 @@ void ContactResolver::set_iterations(unsigned int iterations_max)
     this->iterations_max = iterations_max;
 }
 
-void ContactResolver::resolve_contacts(Contact* contacts, unsigned int num_contacts, var_type duration)
+void ContactResolver::resolve_contacts(std::vector<Contact>& contacts, var_type duration)
 {
-//TODO
+    if (contacts.size() > 0) {
+        std::cout << contacts.size() << std::endl;
+    }
+    iterations_max =  4 *  contacts.size(); 
+    iterations_count = 0;
+    while (iterations_count < iterations_max) {
+        var_type minimum = std::numeric_limits<var_type>::max();
+        unsigned int minimum_index = 0;
+        var_type speed_sep = 0.0;
+        // find most negative seperating speed from all contacts
+        for(size_t i = 0; i < contacts.size(); ++i) { //    for(auto& contact : contacts) {
+            speed_sep = contacts[i].seperating_speed_calculate(); 
+            if (speed_sep < minimum) {
+                minimum       = speed_sep;
+                minimum_index = i;
+            }
+        }
+        // if all contacts are seperating (speed >= 0.0) then all contacts are resolved.
+        if (minimum >= 0.0) return;
+        // resolve contact
+        contacts[minimum_index].resolve(duration);
+        iterations_count++;
+    }
+}
+
+var_type
+ParticleLink::length_current_calculate() const
+{
+   return (balls[1]->pos - balls[0]->pos).magnitude();
+}
+
+Rod::Rod(var_type length) : length(length)
+{
+
+}
+
+unsigned int 
+Rod::generate_contact(std::vector<Contact>& contacts, unsigned limit) 
+{
+    var_type length_current = length_current_calculate();
+    if (length_current == length) return 0;
+    Contact c;
+    c.ball[0] = balls[0];
+    c.ball[1] = balls[1];
+    c.restitution = 0.0; // TODO make variable later?
+    c.contact_normal = (c.ball[0]->pos - c.ball[1]->pos).unit(); //reverse the normal
+    c.movement[0] =  Vector2(0.0, 0.0);
+    c.movement[1] =  Vector2(0.0, 0.0);
+    var_type penetration = 0.0;
+    if (length_current < length) {  //compression
+        // objects are too close, spread them.
+        penetration =  length - length_current;
+    } else {  //extension
+        penetration = length_current - length;
+        c.contact_normal *= -1.0; // v1 - v0
+    }
+    c.penetration = penetration;
+    contacts.push_back(c);
+    return 1;
+}
+
+void
+Rod::draw()
+{
+    SDL_SetRenderDrawColor(gsdl.renderer, 128, 128, 128, 0);
+    SDL_RenderDrawLine(gsdl.renderer, balls[0]->pos.x, balls[0]->pos.y, 
+                      balls[1]->pos.x, balls[1]->pos.y);
+}
+
+Cable::Cable(var_type length_max, var_type restitution) 
+        : length_max(length_max), restitution(restitution)
+{
+
+}
+
+unsigned int 
+Cable::generate_contact(std::vector<Contact>& contacts, unsigned limit) 
+{
+    var_type length_current = length_current_calculate();
+    if (length_current >= length_max) return 0;
+    Contact c;
+    c.ball[0] = balls[0];
+    c.ball[1] = balls[1];
+    c.restitution = 0.5; // TODO make variable later?
+    c.contact_normal = (c.ball[0]->pos - c.ball[1]->pos).unit(); //reverse the normal
+    c.movement[0] =  Vector2(0.0, 0.0);
+    c.movement[1] =  Vector2(0.0, 0.0);
+    c.contact_normal *= -1.0; // v1 - v0
+    c.penetration = length_current - length_max;
+    contacts.push_back(c);
+    return 1;
+}
+
+void
+Cable::draw()
+{
+    SDL_SetRenderDrawColor(gsdl.renderer, 128, 128, 128, 0);
+    SDL_RenderDrawLine(gsdl.renderer, balls[0]->pos.x, balls[0]->pos.y, 
+                      balls[1]->pos.x, balls[1]->pos.y);
 }
 
 // private function
@@ -334,6 +576,7 @@ void spring_draw(Vector2 start, Vector2 end, var_type rest_length)
     //
     // draw spring from data determined above
     //
+    
     int displacement = length - rest_length;
     if (displacement > 250) displacement = 250;
     else if (displacement < -250) displacement = -250;
@@ -343,8 +586,6 @@ void spring_draw(Vector2 start, Vector2 end, var_type rest_length)
     else red = red - displacement;
     
     SDL_SetRenderDrawColor(gsdl.renderer, red, green, 30, 0);
-
-
     //// drawing the "spring" as a straight wire
     //int test = SDL_RenderDrawLine(gsdl.renderer, start.x, start.y, end.x, end.y);
     // drawing straight ends of the spring
@@ -361,7 +602,4 @@ void spring_draw(Vector2 start, Vector2 end, var_type rest_length)
                         turn_positions[i + 1].x, turn_positions[i + 1].y);
     }
 }
-
-
-
 

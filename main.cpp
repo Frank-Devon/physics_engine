@@ -12,9 +12,12 @@ const int SCREEN_TICK_PER_FRAME = 1000/ SCREEN_FPS;
 
 std::vector<Ball> balls = {};
 std::vector<Edge> edges = {};
+std::vector<Contact> contacts = {};
+std::vector<ContactGenerator*> contact_generators = {};
 Ball* ball_mouseover = NULL;
 Ball* ball_selected = NULL;
 ParticleForceRegistry particle_force_registry;
+ContactResolver contact_resolver(100);
 SDL_Texture* ball_texture;
 SDL_Texture* ball_mouseover_texture;
 SDL_Texture* ball_selected_texture;
@@ -24,6 +27,8 @@ Vector2 mouse_pos = Vector2(0, 0);
 void
 update(var_type duration)
 {
+    contacts.clear(); // clear contacts... might not be necessary
+    for (auto& ball : balls) ball.force_accumulator = Vector2(0, 0);
     particle_force_registry.update_all(duration);
     for (auto& ball : balls) {
         ball.integrate(duration);
@@ -36,20 +41,84 @@ update(var_type duration)
         ball_selected->vel = Vector2(0, 0);
     }
     // detect collisions with other balls and edges
-    for(int i = 0; i < balls.size(); i++){
-        for(int j = i + 1; j < balls.size(); j++) {
-            balls[i].collides_ball(balls[j]);          
+    for (size_t i = 0; i < balls.size(); i++) {
+        for (size_t j = i + 1; j < balls.size(); j++) {
+            //balls[i].collides_ball(balls[j]);          
+            Vector2 pos_relative = balls[i].pos - balls[j].pos;//b.pos - pos;
+            var_type penetration = balls[i].radius + balls[j].radius - pos_relative.magnitude();
+            if (penetration > 0.0) {
+                Contact c;
+                c.ball[0] = &balls[i];
+                c.ball[1] = &balls[j];
+                c.penetration = penetration;
+                c.restitution = 1.0; // TODO make variable later?
+                c.contact_normal = (c.ball[0]->pos - c.ball[1]->pos).unit();
+                c.movement[0] =  Vector2(0.0, 0.0);
+                c.movement[1] =  Vector2(0.0, 0.0);
+                contacts.push_back(c);
+                //std::cout << "contact made" << std::endl;
+            }
         }
-        for(int k = 0; k < edges.size(); k++) {
-            balls[i].collides_edge(edges[k]);          
+        
+        for(unsigned int k = 0; k < edges.size(); k++) {
+            
+            Edge edge = edges[k];
+            Vector2 PS = balls[i].pos - edge.start;   //Vec2_sub(&ball->pos, &edge->start); 
+            Vector2 SE = edge.end - edge.start; //edge.start - edge.end;   
+            // will find the SE.x, SE.SE.x, SE.y point on the edge to the ball
+            var_type dot_product = PS.dot(SE);  //Vec2_dot_product(&PS, &SE);
+            var_type SE_magnitude = SE.magnitude();  //Vec2_magnitude(&SE);
+            // normalize t between 0 and 1
+            var_type t = fmax(0.0, fmin(SE_magnitude, dot_product / SE_magnitude));
+            t = t / SE_magnitude;
+            //std::cout << "t: " << t << std::endl;
+            Vector2 closest_point = t * SE; //Vec2_scale(&SE, t);
+            closest_point = closest_point + edge.start;  //Vec2_add(&closest_point, &edge->start); 
+            //printf("closest circ = %f, %f", closest_point.x, closest_point.y);
+            Vector2 penetration_vector = closest_point - balls[i].pos;
+            var_type penetration = balls[i].radius - penetration_vector.magnitude();
+
+
+
+
+
+
+
+            if (penetration > 0.0) {
+                //balls[i].collides_edge(edges[k]);          
+                //Vector2 pos_relative = balls[i].pos;//b.pos - pos;
+                //var_type penetration = balls[i].radius - pos_relative.magnitude();
+                Contact c;
+                c.ball[0] = &balls[i];
+                c.ball[1] = NULL;
+                c.penetration = penetration;
+                c.restitution = 1.0; // TODO make variable later?
+                c.contact_normal = (c.ball[0]->pos - closest_point).unit();
+                c.movement[0] =  Vector2(0.0, 0.0);
+                c.movement[1] =  Vector2(0.0, 0.0);
+                contacts.push_back(c);
+                //std::cout << "contact made" << std::endl;
+            }
         }
+    }
+
+    for (ContactGenerator* cg : contact_generators) {
+        cg->generate_contact(contacts, 3);
+    }
+
+    // resolve collisions
+    if (contacts.size() > 0) {
+        std::cout << "contact made" << contacts.size() << std::endl;
+        contact_resolver.resolve_contacts(contacts, duration);
+    } else {
+        std::cout << "no contacts" << std::endl;
     }
 }
 
 void
 render(var_type duration)
 {
-    SDL_SetRenderDrawColor(gsdl.renderer, 0x00,0x00,0x18,SDL_ALPHA_OPAQUE);
+    SDL_SetRenderDrawColor(gsdl.renderer, 0x00,0x00,0x1F, SDL_ALPHA_OPAQUE);
     SDL_RenderClear(gsdl.renderer);
     SDL_FRect r;
     for (auto& ball : balls) {
@@ -78,8 +147,8 @@ render(var_type duration)
     }
     // render edges
     for (Edge& edge : edges) {
-        SDL_SetRenderDrawColor(gsdl.renderer, 100, 100, 100, 50);
-        int test = SDL_RenderDrawLine(gsdl.renderer, edge.start.x, edge.start.y, edge.end.x, edge.end.y);
+        SDL_SetRenderDrawColor(gsdl.renderer, 100, 100, 100, 0);
+        SDL_RenderDrawLine(gsdl.renderer, edge.start.x, edge.start.y, edge.end.x, edge.end.y);
         //int test = SDL_RenderDrawLine(gsdl.renderer, g_edges[i].line_0_start.x, 
         //    g_edges[i].line_0_start.y, g_edges[i].line_0_end.x, g_edges[i].line_0_end.y);
         //test = SDL_RenderDrawLine(gsdl.renderer, g_edges[i].line_1_start.x, 
@@ -87,9 +156,19 @@ render(var_type duration)
     }
 
     //
-    // render force generators in the "registry"
+    // render spring
     //
+    //spring_draw(balls[0].pos, balls[1].pos, 300);
+    //
+    // render anchored springs
+    //
+    //Vector2 anchor = Vector2(300.0, 300.0);
+    //spring_draw(balls[0].pos, anchor, 250.0);
     particle_force_registry.draw_all(duration);
+
+    for (auto contact_gen : contact_generators) {
+        contact_gen->draw();        
+    }
 
     // print total energy to screen
     static int skip_frames;
@@ -120,7 +199,7 @@ render(var_type duration)
         //    energy_total += energy_kinematic + energy_potential;
         //}
         //int ret = snprintf(buffer, sizeof buffer, "%f J", energy_total);
-        int ret = snprintf(buffer, sizeof buffer, "%E J: %E, %E", energy_total, energy_kinematic, energy_potential);
+        snprintf(buffer, sizeof buffer, "%E J: %E, %E", energy_total, energy_kinematic, energy_potential);
         if (energy_readout_texture != NULL)
         { SDL_DestroyTexture(energy_readout_texture); }
         energy_readout_surface = TTF_RenderUTF8_Solid(gsdl.font, buffer, {0, 0, 100});
@@ -152,7 +231,7 @@ int main()
     Uint64 time_frame_duration=0;
     
     // create some initial balls and edges
-    const float pi = 3.14159;
+    //const float pi = 3.14159;
     //balls.push_back(Ball(Vector2(100, 100), Vector2(1.0, 1.0), Vector2(0,0), 8, 0.005, 1));
     // this ball collides with edge
     //balls.push_back(Ball(Vector2(180, 300), Vector2(1.0, 0.1), Vector2(0,0), 5, 0.005, 1));
@@ -161,11 +240,17 @@ int main()
     //balls.push_back(Ball(Vector2(472, 300), Vector2(0.0, -2.0), Vector2(0,0), 15, 0.005, 1));
    
     // TODO make balls an array
-    balls.reserve(100);
+    balls.reserve(1000);
+    contacts.reserve(1000);
+    contact_generators.reserve(1000);
     // testing springs 
     balls.push_back(Ball(Vector2(200, 450), Vector2(0.0, 0.0), Vector2(0,0), 15, 0.001, 1));
-    balls.push_back(Ball(Vector2(600, 150), Vector2(0.0, 0.0), Vector2(0,0), 15, 0.001, 1));
-    //balls.push_back(Ball(Vector2(450, 300), Vector2(0.0, 0.0), Vector2(0,0), 15, 0.001, 1));
+    balls.push_back(Ball(Vector2(500, 350), Vector2(0.0, 0.0), Vector2(0,0), 15, 0.001, 1));
+    balls.push_back(Ball(Vector2(250, 450), Vector2(0.0, 0.0), Vector2(0,0), 15, 0.001, 1));
+    balls.push_back(Ball(Vector2(530, 350), Vector2(0.0, 0.0), Vector2(0,0), 15, 0.001, 1));
+    // these two balls hit each other (2d collision test)
+    //balls.push_back(Ball(Vector2(650, 310), Vector2(0.0, -0.6), Vector2(0,0), 15, 0.001, 1));
+    //balls.push_back(Ball(Vector2(648, 240), Vector2(0.0, 0.6), Vector2(0,0), 15, 0.001, 1));
     // border edges
     edges.push_back(Edge(Vector2(1, 1), Vector2(800, 1)));  // top edge
     edges.push_back(Edge(Vector2(1, 599), Vector2(799, 599))); // bottom edge
@@ -189,20 +274,31 @@ int main()
     particle_force_registry.add(&balls[0], &spring0);
     particle_force_registry.add(&balls[0], &spring1);
     // add bungee
-    Vector2 anchor2(400, 200);
-    BungieForceGenerator bungie(&anchor2, 250.0, 28.0);
-    particle_force_registry.add(&balls[1], &bungie);
+    Vector2 anchor2(290, 270);
+    BungeeForceGenerator bungee(&anchor2, 150.0, 28.0);
+    particle_force_registry.add(&balls[1], &bungee);
    
-    // Bungie bungie(anchor_point, rest_length, spr_constant, force_registry, ball)
+    // Bungee bungee(anchor_point, rest_length, spr_constant, force_registry, ball)
     // AncSpring as(anchor_point, rest_length, spr_constant, force_registry, ball)
     // Spring spring(ball0, ball1 rest_length, spr_constant, force_registry)
     
 
     GravityForceGenerator gravity_force_generator(Vector2(0.0, 250.1));
     //particle_force_registry.add(&balls[0], &gravity_force_generator);
+    particle_force_registry.add(&balls[0], &gravity_force_generator);
     particle_force_registry.add(&balls[1], &gravity_force_generator);
-
-
+    particle_force_registry.add(&balls[2], &gravity_force_generator);
+    particle_force_registry.add(&balls[3], &gravity_force_generator);
+    
+    // add contact generators (rods or cables), things that 'can' generate contacts
+    Rod rod(100.0);
+    rod.balls[0] = &balls[0];
+    rod.balls[1] = &balls[2];
+    contact_generators.push_back(&rod); 
+    Rod rod1(50.0);
+    rod1.balls[0] = &balls[1];
+    rod1.balls[1] = &balls[3];
+    contact_generators.push_back(&rod1); 
     //// register force generators to particles/balls
     //particle_force_registry.add(&balls[0], &spring_a);
     //particle_force_registry.add(&balls[1], &spring_b);
