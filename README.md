@@ -1,7 +1,7 @@
 # physics_engine
 This is a physics simulation. Springs, bungees, rods, and collisions are simulated. Here's a video: https://vimeo.com/877286187
 
-Requires SDL2, SDL_image, SDL_ttf libraries. Static linking is used.
+Requires SDL2, SDL_image, SDL_ttf libraries.
 Compiles on linux with:
 g++ -g -Wall -Werror *.cpp -lSDL2 -lSDL2_image -lSDL2_ttf -ldl -o a
 
