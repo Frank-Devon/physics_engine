@@ -7,5 +7,8 @@ g++ -g -Wall -Werror *.cpp -lSDL2 -lSDL2_image -lSDL2_ttf -ldl -o a
 
 Right click anywhere to place a particle/ball with random velocity. Left click and hold on a ball to move it's position. Press d to delete a ball.
 
-Bugs
-- While manually moving a ball attached to a rod, the rod's length can change for several frames.
+Next features:
+- Several demonstrations to choose from (Netwon's cradle, double pendulum, glancing collisions, diffusion, and more)
+- Rigid body
+- Better UI
+- Bug fixes
