@@ -1,2 +1,0 @@
--have physics state be a single global object/class, so it's easy to set up different scenes
--
