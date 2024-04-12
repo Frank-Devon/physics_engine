@@ -1,4 +1,5 @@
 #include <cmath>
+#include <iostream>
 #include "vector.hpp"
 
 
@@ -46,6 +47,21 @@ void Vector2::operator*=(const var_type a) {
     y = y * a;
 }
 
+
+bool operator!=(const Vector2& a, const Vector2& b) {
+    //return a.x != b.x || a.y != b.y; 
+    return !(a.x == b.x && a.y == b.y); 
+}
+
+bool operator==(const Vector2& a, const Vector2& b) {
+    return a.x == b.x && a.y == b.y; 
+}
+
+std::ostream& operator<<(std::ostream& output, const Vector2& v) {
+    output << '(' << v.x << ", " << v.y << ") ";
+    return output;
+}
+
 var_type Vector2::dot(const Vector2& a) const {
     var_type sum = 0.0;
     sum = x * a.x + y * a.y;
@@ -87,3 +103,9 @@ Vector2 Vector2::perpendicular() const {
     result.y = this->x;
     return result;
 }
+
+var_type distance(const Vector2& a, const Vector2& b) {
+    Vector2 pos_relative = a - b; 
+    return pos_relative.magnitude();
+}
+

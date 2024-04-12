@@ -1,0 +1,38 @@
+!_TAG_FILE_FORMAT	2	/extended format; --format=1 will not append ;" to lines/
+!_TAG_FILE_SORTED	1	/0=unsorted, 1=sorted, 2=foldcase/
+!_TAG_OUTPUT_EXCMD	mixed	/number, pattern, mixed, or combineV2/
+!_TAG_OUTPUT_FILESEP	slash	/slash or backslash/
+!_TAG_OUTPUT_MODE	u-ctags	/u-ctags or e-ctags/
+!_TAG_PATTERN_LENGTH_LIMIT	96	/0 for no limit/
+!_TAG_PROC_CWD	/home/user/code/sim/new/	//
+!_TAG_PROGRAM_AUTHOR	Universal Ctags Team	//
+!_TAG_PROGRAM_NAME	Universal Ctags	/Derived from Exuberant Ctags/
+!_TAG_PROGRAM_URL	https://ctags.io/	/official site/
+!_TAG_PROGRAM_VERSION	5.9.0	//
+SCREEN_FPS	main.cpp	/^const int SCREEN_FPS = 60;$/;"	v	typeref:typename:const int
+SCREEN_TICK_PER_FRAME	main.cpp	/^const int SCREEN_TICK_PER_FRAME = 1000\/ SCREEN_FPS;$/;"	v	typeref:typename:const int
+SDL_Main	sdl_init.cpp	/^SDL_Main::SDL_Main(int screen_width, int screen_height) {$/;"	f	class:SDL_Main
+ball_texture	main.cpp	/^SDL_Texture* ball_texture;$/;"	v	typeref:typename:SDL_Texture *
+balls	main.cpp	/^std::vector<Ball> balls = {};$/;"	v	typeref:typename:std::vector<Ball>
+collides_ball	physics.cpp	/^void Ball::collides_ball(Ball& b) {$/;"	f	class:Ball	typeref:typename:void
+collides_edge	physics.cpp	/^void Ball::collides_edge(const Edge& edge) {$/;"	f	class:Ball	typeref:typename:void
+dot	vector.cpp	/^var_type Vector2::dot(const Vector2& a) const {$/;"	f	class:Vector2	typeref:typename:var_type
+edges	main.cpp	/^std::vector<Edge> edges = {};$/;"	v	typeref:typename:std::vector<Edge>
+gsdl	sdl_init.cpp	/^SDL_Main gsdl(800, 600);$/;"	v	typeref:typename:SDL_Main
+integrate	physics.cpp	/^void Ball::integrate(var_type duration) {$/;"	f	class:Ball	typeref:typename:void
+magnitude	vector.cpp	/^var_type Vector2::magnitude() const {$/;"	f	class:Vector2	typeref:typename:var_type
+main	main.cpp	/^int main() {$/;"	f	typeref:typename:int
+operator *	vector.cpp	/^Vector2 operator*(const var_type a, const Vector2& b) {$/;"	f	typeref:typename:Vector2
+operator *=	vector.cpp	/^void Vector2::operator*=(const var_type a) {$/;"	f	class:Vector2	typeref:typename:void
+operator +	vector.cpp	/^Vector2 operator+(const Vector2& a, const Vector2& b) {$/;"	f	typeref:typename:Vector2
+operator +=	vector.cpp	/^void Vector2::operator+=(const Vector2& a) {$/;"	f	class:Vector2	typeref:typename:void
+operator -	vector.cpp	/^Vector2 operator-(const Vector2& a) {$/;"	f	typeref:typename:Vector2
+operator -	vector.cpp	/^Vector2 operator-(const Vector2& a, const Vector2& b) {$/;"	f	typeref:typename:Vector2
+operator -=	vector.cpp	/^void Vector2::operator-=(const Vector2& a) {$/;"	f	class:Vector2	typeref:typename:void
+operator /	vector.cpp	/^Vector2 operator\/(const Vector2& a, const var_type b) {$/;"	f	typeref:typename:Vector2
+perpendicular	vector.cpp	/^Vector2 Vector2::perpendicular() const {$/;"	f	class:Vector2	typeref:typename:Vector2
+reflect	physics.cpp	/^Collision::reflect(const Vector2& a, const Edge& edge)$/;"	f	class:Collision	typeref:typename:Vector2
+render	main.cpp	/^render(){$/;"	f	typeref:typename:void
+restitution	physics.cpp	/^var_type Ball::restitution = 1.0;$/;"	m	class:Ball	typeref:typename:var_type
+unit	vector.cpp	/^Vector2 Vector2::unit() const {$/;"	f	class:Vector2	typeref:typename:Vector2
+update	main.cpp	/^update(var_type duration){$/;"	f	typeref:typename:void
