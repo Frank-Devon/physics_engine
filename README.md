@@ -6,5 +6,4 @@ Builds with Make.
 
 Press 1 through 5 to see different physics demonstrations. Left click and hold on a ball to move its position. Press d to delete a ball.
 
-Next features (coming soon):
-- Rigid body
+Next feature will be rigid body physics. 
