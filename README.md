@@ -1,15 +1,10 @@
 # physics_engine
-This is a physics simulation. Springs, bungees, rods, and collisions are simulated. Here's a video: https://vimeo.com/877286187
+This is a mass aggregate impulse based physics simulation. Springs, bungees, rods, and collisions are simulated. Here's a video: https://vimeo.com/933614396
 
-Requires SDL2, SDL_image, SDL_ttf libraries.
-Compiles on linux with:
-g++ -g -Wall -Werror *.cpp -lSDL2 -lSDL2_image -lSDL2_ttf -ldl -o a
+Requires SDL2, SDL_image, SDL_ttf libraries. This project uses ImGui https://github.com/ocornut/imgui
+Builds with Make.
 
-Right click anywhere to place a particle/ball with random velocity. Left click and hold on a ball to move it's position. Press d to delete a ball.
+Press 1 through 5 to see different physics demonstrations. Left click and hold on a ball to move its position. Press d to delete a ball.
 
 Next features (coming soon):
-- Several demonstrations to choose from (Netwon's cradle, double pendulum, glancing collisions, diffusion, and more)
 - Rigid body
-- Optimizations (spatial partitioning, and more)
-- Better UI
-- Bug fixes
