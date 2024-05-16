@@ -19,7 +19,7 @@ const int SCREEN_TICK_PER_FRAME = 1000 / SCREEN_FPS;
 //const int BALLPTR_GRID_Y_MAX = 20; 
 //using ballptr_array = std::array<std::array<std::array<Ball*, 30>, 20>, 20>; 
 
-static int num_hard_constraints = 0;
+//static int num_hard_constraints = 0;
 
 // variables that are the most important for the simulation
 std::vector<Ball> balls = {};
@@ -55,7 +55,7 @@ var_type emitter_time_current = 0.05f;  // decremented every frame by amount of 
 // configure physics simulation
 var_type restitution_ball_edge = 1.0f;
 var_type restitution_ball_ball = 1.0f;
-var_type gravity = 0.5f;
+var_type gravity = 400.0f;//0.050f;
 var_type dampening_vel = 1.0f;  //0.99998f;
 var_type new_ball_avg_size = 10.0;
 var_type ball_new_min_radius = 6.0;
@@ -64,6 +64,7 @@ var_type ball_new_fixed_radius = 15.0;
 bool ball_fixed_radius = true;
 bool ball_new_speed_zero = false;
 int collision_recheck_count = 20;
+int num_steps_per_loop = 40;
 
 // commands. bools checked every frame, if true, do some job, then turn the flag off automatically
 bool command_gravity = false;  // accel of every particle set to global gravity variable
@@ -89,17 +90,65 @@ bool command_dampening_vel = false;
 //ImGui_ImplSDL2_InitForSDLRenderer(window, renderer);
 //ImGui_ImplSDLRenderer2_Init(renderer);
 // Our state
-bool show_demo_window = false;
+bool show_demo_window = true;
 bool show_another_window = false;
 ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
+
+double
+kinetic_energy_calculate()
+{
+    double energy = 0.0;
+    for (auto& ball : balls) {
+       energy += 0.5 * (1.0/ball.mass_inverse) * pow(ball.vel.magnitude(), 2.0); 
+    }
+    return energy;
+}
+double
+potential_energy_calculate()
+{
+    double energy = 0.0;
+    for (auto& ball : balls) {
+       energy += (1.0/ball.mass_inverse) * gravity * (599.0 - (ball.pos.y + ball.radius));
+    }
+    return energy;
+}
+
+double
+total_energy_calculate()
+{
+    return potential_energy_calculate() + kinetic_energy_calculate();
+}
+
+void erase_scene() 
+{
+    balls.clear();
+    edges.clear();
+    contacts.clear();
+    emitter_time = 0;
+    for (ContactGenerator* cg : contact_generators) delete cg;
+    contact_generators.clear();
+    particle_force_registry.clear();
+}
 
 void
 update(var_type duration)
 {
     for (auto& ball : balls) ball.force_accumulator = Vector2(0, 0);
     particle_force_registry.update_all(duration);
-    for (auto& ball : balls) {
-        if (&ball != ball_selected) ball.integrate(duration); 
+    // integrate balls with chosen integration method 
+    switch (Ball::integration_method) {
+        case Ball::IntegrationMethod::explicit_euler:
+            for (auto& ball : balls) 
+            { if (&ball != ball_selected) ball.integrate_explicit_euler(duration); }
+            break;
+        case Ball::IntegrationMethod::implicit_euler:
+            for (auto& ball : balls) 
+            { if (&ball != ball_selected) ball.integrate_implicit_euler(duration); }
+            break;
+        case Ball::IntegrationMethod::explicit_midpoint:
+            for (auto& ball : balls) 
+            { if (&ball != ball_selected) ball.integrate_explicit_midpoint(duration); }
+            break;
     }
     
     // if a ball is selected, make sure it moves with the cursor
@@ -119,7 +168,6 @@ update(var_type duration)
         for (Ball& ball : balls) {
             auto& balls_nearby = space_partition.get_nearby_balls(ball.pos);
             for (Ball* ball_nearby : balls_nearby) {
-                //if (ball_nearby == nullptr || ball_nearby->pos == ball.pos) break;
                 if (ball_nearby == nullptr) break;
                 if (ball_nearby->pos == ball.pos) continue;
                 Vector2 pos_relative = ball.pos - ball_nearby->pos; 
@@ -245,7 +293,6 @@ render(var_type duration, ImGuiIO& io)
         SDL_Surface* energy_readout_surface = NULL;
         char buffer[128];
 
-        //auto nearby_balls = space_partition.get_nearby_balls(mouse_pos);
         //get out of bounds balls
         int balls_out_of_bounds = 0;
         for (Ball& ball : balls) {
@@ -328,16 +375,43 @@ render(var_type duration, ImGuiIO& io)
         
         ImGui::Text("   PRESS 1 - 5 TO SELECT DEMO   ");            
         ImGui::Text("Lower Collision Re-Check to improve speed,\nat the cost of stability");
-        ImGui::SliderInt("Collision Re-Check #", &collision_recheck_count, 1, 20);
+        ImGui::SliderInt("Collision Re-Check #", &collision_recheck_count, 1, 40);
         //ImGui::SliderFloat("float", &f, -1.0f, 1.0f);            // Edit 1 float using a slider from 0.0f to 1.0f
+        ImGui::SliderInt("physics updates per frame", &num_steps_per_loop, 1, 200);
+        ImGui::SliderInt("Max Iterations over contact list", 
+                &contact_resolver.iterate_over_list_count, 1, 20);
+        switch (Ball::integration_method) {
+            case Ball::IntegrationMethod::explicit_euler:
+                ImGui::Text("Method: Explicit Euler");
+                break;
+            case Ball::IntegrationMethod::implicit_euler:
+                ImGui::Text("Method: Implicit Euler");
+                break;
+            case Ball::IntegrationMethod::explicit_midpoint:
+                ImGui::Text("Method: Explicit Midpoint");
+                break;
+        }
+        if (ImGui::Button("Explicit Euler")) {
+            Ball::integration_method = Ball::IntegrationMethod::explicit_euler;
+        }
+        ImGui::SameLine();
+        if (ImGui::Button("Implicit Euler")) {
+            Ball::integration_method = Ball::IntegrationMethod::implicit_euler;
+        }
+        //ImGui::SameLine();
+        //if (ImGui::Button("Explicit Midpoint")) {
+        //    Ball::integration_method = Ball::IntegrationMethod::explicit_midpoint;
+        //}
         ImGui::Text("New ball properties");
-        ImGui::Checkbox("fixed radius", &ball_fixed_radius); 
+        ImGui::Checkbox("fixed radius ", &ball_fixed_radius); 
         ImGui::Checkbox("initial speed = 0", &ball_new_speed_zero);
+        //static float ball_new_fixed_radius_imgui = (float)ball_new_fixed_radius;
         ImGui::SliderFloat("fixed radius", &ball_new_fixed_radius, 9.0, 20.0);
+
         ImGui::SliderFloat("min radius", &ball_new_min_radius, 2.0, 9.0);
         ImGui::SliderFloat("max radius", &ball_new_max_radius, 12.0, 20.0);
         ImGui::Text(" ");
-        ImGui::SliderFloat("gravity", &gravity, -2.0f, 2.0f);            // Edit 1 float using a slider from 0.0f to 1.0f
+        ImGui::SliderFloat("gravity", &gravity, -400.0f, 400.0f);            // Edit 1 float using a slider from 0.0f to 1.0f
         ImGui::SameLine();
         if (ImGui::Button("Zero G.")) {
             gravity = 0.0;
@@ -354,7 +428,22 @@ render(var_type duration, ImGuiIO& io)
         //ImGui::Text("counter = %d", counter);
         ImGui::Text("Contact count = %d", (int)contacts.size());
         ImGui::Text("Edges count = %d", (int)edges.size());
-        ImGui::Text("Constraints count = %d", (int)num_hard_constraints);
+        //ImGui::Text("Constraints count = %d", (int)num_hard_constraints);
+        
+        // energy stuff
+        if (balls.size() > 0) {
+            ImGui::Text("balls[0].pos = %f, %f", balls[0].pos.x, balls[0].pos.y);
+            ImGui::Text("balls[0].vel = %f, %f", balls[0].vel.x, balls[0].vel.y);
+            ImGui::Text("balls[0].speed = %f", balls[0].vel.magnitude());
+            ImGui::Text("balls[0].acc = %f, %f", balls[0].acc.x, balls[0].acc.y);
+
+            ImGui::Text("balls[0] mass = %f", 1.0/balls[0].mass_inverse);
+
+        }
+        ImGui::Text("duration = %f", duration);
+        ImGui::Text("Potential Energy = %f", potential_energy_calculate());
+        ImGui::Text("Kinetic Energy = %f", kinetic_energy_calculate());
+        ImGui::Text("Total Energy = %f", total_energy_calculate());
 
         ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / io.Framerate, io.Framerate);
         ImGui::End();
@@ -386,7 +475,8 @@ void emit_ball(Vector2 mouse_pos) {
     ball.pos = mouse_pos;
     ball.vel = !ball_new_speed_zero ? Vector2((float)(rand() % 40 - 20) * 0.3, 
         (float)(rand() % 40 - 20) * 0.3) : Vector2(0.0, 0.0);
-    ball.acc = Vector2(0, gravity);
+    //ball.acc = Vector2(0, gravity);
+    ball.acc = Vector2(0.0, 0.0 ); // TODO, set initial acceleration to something else?
     ball.radius = ball_fixed_radius ? ball_new_fixed_radius : ball_new_min_radius 
         + float(rand() % (int)(ball_new_max_radius - ball_new_min_radius));
     ball.mass_inverse = 1.0/ (3.14159 * pow(ball.radius, 2));
@@ -395,10 +485,7 @@ void emit_ball(Vector2 mouse_pos) {
 }
 
 void set_up_scene_springs_bungees(){
-    balls.clear();
-    contacts.clear();
-    contact_generators.clear();
-    particle_force_registry.clear();
+    erase_scene();
     // testing springs 
     balls.push_back(Ball(Vector2(200, 450), Vector2(0.0, 0.0), Vector2(0,0), 15, 0.001, 1));
     balls.push_back(Ball(Vector2(500, 350), Vector2(0.0, 0.0), Vector2(0,0), 15, 0.001, 1));
@@ -435,10 +522,7 @@ void set_up_scene_springs_bungees(){
 }
 
 void set_up_scene_main(){
-    balls.clear();
-    contacts.clear();
-    contact_generators.clear();
-    particle_force_registry.clear();
+    erase_scene();
     // border edges
     edges.push_back(Edge(Vector2(1, 1), Vector2(800, 1)));  // top edge
     edges.push_back(Edge(Vector2(1, 599), Vector2(799, 599))); // bottom edge
@@ -512,10 +596,7 @@ void set_up_scene_main(){
 }
 
 void set_up_scene_many_balls(){
-    balls.clear();
-    contacts.clear();
-    contact_generators.clear();
-    particle_force_registry.clear();
+    erase_scene();
     // border edges
     edges.push_back(Edge(Vector2(1, 1), Vector2(800, 1)));  // top edge
     edges.push_back(Edge(Vector2(1, 599), Vector2(799, 599))); // bottom edge
@@ -531,10 +612,7 @@ void set_up_scene_many_balls(){
 }
 
 void set_up_scene_newton_cradle() {
-    balls.clear();
-    contacts.clear();
-    contact_generators.clear();
-    particle_force_registry.clear();
+    erase_scene();
 
     edges.push_back(Edge(Vector2(1, 1), Vector2(800, 1)));  // top edge
     edges.push_back(Edge(Vector2(1, 599), Vector2(799, 599))); // bottom edge
@@ -561,10 +639,7 @@ void set_up_scene_newton_cradle() {
 }
 
 void set_up_scene_crate() { 
-    balls.clear();
-    contacts.clear();
-    contact_generators.clear();
-    particle_force_registry.clear();
+    erase_scene();
 
     edges.push_back(Edge(Vector2(1, 1), Vector2(800, 1)));  // top edge
     edges.push_back(Edge(Vector2(1, 599), Vector2(799, 599))); // bottom edge
@@ -586,10 +661,7 @@ void set_up_scene_crate() {
 
 void set_up_scene_double_pendulum()
 {
-    balls.clear();
-    contacts.clear();
-    contact_generators.clear();
-    particle_force_registry.clear();
+    erase_scene();
 
     edges.push_back(Edge(Vector2(1, 1), Vector2(800, 1)));  // top edge
     edges.push_back(Edge(Vector2(1, 599), Vector2(799, 599))); // bottom edge
@@ -599,6 +671,40 @@ void set_up_scene_double_pendulum()
     balls.push_back(Ball(Vector2(200, 400), Vector2(0.0, 0.0), Vector2(0,0), 15, 0.001, 1));
     balls.push_back(Ball(Vector2(200, 500), Vector2(0.0, 0.0), Vector2(0,0), 15, 0.001, 1));
 
+}
+
+void set_up_scene_energy_test()
+{
+    erase_scene();
+
+    edges.push_back(Edge(Vector2(1, 1), Vector2(800, 1)));  // top edge
+    edges.push_back(Edge(Vector2(1, 599), Vector2(799, 599))); // bottom edge
+    edges.push_back(Edge(Vector2(799, 1), Vector2(799, 599))); //right edge
+    edges.push_back(Edge(Vector2(1, 1), Vector2(1, 599))); // left edge
+
+    float step = 40.0; 
+    //add second chain of balls
+    for (int i = 0; i < 10; i++) {
+        balls.push_back(Ball(Vector2(300 + i * step, 450), 
+            Vector2(0.0, 0.0), Vector2(0,0), 15, 0.001, 1));
+    }
+    //connect second chain to itself via RodLink 
+    for (int i = 0; i < 9; i++) {
+        //contact_generators.push_back(new RodLink(step, &balls[i], &balls[i+1])); 
+        contact_generators.push_back(new CableLink(step, &balls[i], &balls[i+1])); 
+    }
+    step = 50;
+    balls.push_back(Ball(Vector2(150, 400), Vector2(0.0, 0.0), Vector2(0,0), 15, 0.001, 1));
+    balls.push_back(Ball(Vector2(150 + step, 400), Vector2(0.0, 0.0), Vector2(0,0), 15, 0.001, 1));
+    balls.push_back(Ball(Vector2(150 + step, 400 + step), 
+            Vector2(0.0, 0.0), Vector2(0,0), 15, 0.001, 1));
+    balls.push_back(Ball(Vector2(150, 400 + step), Vector2(0.0, 0.0), Vector2(0,0), 15, 0.001, 1));
+    contact_generators.push_back(new RodLink (step, &balls[10], &balls[11]));
+    contact_generators.push_back(new RodLink (step, &balls[11], &balls[12]));
+    contact_generators.push_back(new RodLink (step, &balls[12], &balls[13]));
+    contact_generators.push_back(new RodLink (step, &balls[13], &balls[10]));
+    contact_generators.push_back(
+        new RodLink (pow((pow(step, 2) + pow(step, 2)), 0.5), &balls[10], &balls[12]));
 }
 
 #if !SDL_VERSION_ATLEAST(2,0,17)
@@ -611,7 +717,8 @@ int main()
     balls.reserve(1000);
     contacts.reserve(1000);
     contact_generators.reserve(1000);
-    set_up_scene_main();  //set_up_scene_rod_test();
+    //set_up_scene_energy_test(); //set_up_scene_main();  //set_up_scene_rod_test();
+    set_up_scene_many_balls();
     // From 2.0.18: Enable native IME.
 #ifdef SDL_HINT_IME_SHOW_UI
             SDL_SetHint(SDL_HINT_IME_SHOW_UI, "1");
@@ -656,15 +763,15 @@ int main()
 
 
 
-    auto a = space_partition.get_index(Vector2(1200, 1100));
-    std::cout << "space " << a.first << ", " << a.second << std::endl;
-    space_partition.get_neighbor_indexes(2, 0);
-    std::cout << "get_neighbor_indexes(0, 0) : " << std::endl;
-    for (int i = 0; i < 9; i++) {
-        std::cout << space_partition.neighbor_indexes[i].first 
-                << ", " << space_partition.neighbor_indexes[i].second << "; ";
-    }
-    std::cout << std::endl;
+    ////auto a = space_partition.get_index(Vector2(1200, 1100));
+    //std::cout << "space " << a.first << ", " << a.second << std::endl;
+    ////space_partition.get_neighbor_indexes(2, 0);
+    ////std::cout << "get_neighbor_indexes(0, 0) : " << std::endl;
+    //for (int i = 0; i < 9; i++) {
+    //    std::cout << space_partition.neighbor_indexes[i].first 
+    //            << ", " << space_partition.neighbor_indexes[i].second << "; ";
+    //}
+    //std::cout << std::endl;
    
     bool exit = false; 
     SDL_Event e;
@@ -716,16 +823,6 @@ int main()
                 }
                 if (e.button.button == SDL_BUTTON_RIGHT) {
                     emit_ball(mouse_pos);
-                    //Ball ball;
-                    //ball.pos = mouse_pos;
-                    //ball.vel = !ball_new_speed_zero ? Vector2((float)(rand() % 40 - 20) * 0.3, 
-                    //    (float)(rand() % 40 - 20) * 0.3) : Vector2(0.0, 0.0);
-                    //ball.acc = Vector2(0, gravity);
-                    //ball.radius = ball_fixed_radius ? ball_new_fixed_radius : ball_new_min_radius 
-                    //    + float(rand() % (int)(ball_new_max_radius - ball_new_min_radius));
-                    //ball.mass_inverse = 1.0/ (3.14159 * pow(ball.radius, 2));
-                    //ball.elasticity = 1.0;
-                    //balls.push_back(ball);
                 }
             }
             if (e.type == SDL_MOUSEBUTTONUP) {
@@ -739,81 +836,24 @@ int main()
             }
             if (e.type == SDL_KEYDOWN) {
                 if(e.key.keysym.sym == SDLK_d) {
-                    if (!balls.empty()) {
-                        balls.pop_back(); 
-                    }
+                    if (!balls.empty()) { balls.pop_back(); }
                 }
-                if (e.key.keysym.sym == SDLK_1) {
-                    balls.clear();
-                    edges.clear();
-                    contacts.clear();
-                    emitter_time = 0;
-                    for (ContactGenerator* cg : contact_generators) delete cg;
-                    contact_generators.clear();
-                    particle_force_registry.clear();
-                    set_up_scene_main();
-                }
-                if (e.key.keysym.sym == SDLK_2) {
-                    balls.clear();
-                    edges.clear();
-                    contacts.clear();
-                    emitter_time = 0;
-                    for (ContactGenerator* cg : contact_generators) delete cg;
-                    contact_generators.clear();
-                    particle_force_registry.clear();
-                    set_up_scene_many_balls();
-                }
-                if (e.key.keysym.sym == SDLK_3) {
-                    balls.clear();
-                    edges.clear();
-                    contacts.clear();
-                    emitter_time = 0;
-                    for (ContactGenerator* cg : contact_generators) delete cg;
-                    contact_generators.clear();
-                    particle_force_registry.clear();
-                    set_up_scene_springs_bungees();
-                }
-                if (e.key.keysym.sym == SDLK_4) {
-                    balls.clear();
-                    edges.clear();
-                    contacts.clear();
-                    emitter_time = 0;
-                    for (ContactGenerator* cg : contact_generators) delete cg;
-                    contact_generators.clear();
-                    particle_force_registry.clear();
-                    set_up_scene_newton_cradle();
-                }
-                if (e.key.keysym.sym == SDLK_5) {
-                    balls.clear();
-                    edges.clear();
-                    contacts.clear();
-                    emitter_time = 0;
-                    for (ContactGenerator* cg : contact_generators) delete cg;
-                    contact_generators.clear();
-                    particle_force_registry.clear();
-                    set_up_scene_crate();
-                }
+                if (e.key.keysym.sym == SDLK_1) { set_up_scene_main(); }
+                if (e.key.keysym.sym == SDLK_2) { set_up_scene_many_balls(); }
+                if (e.key.keysym.sym == SDLK_3) { set_up_scene_springs_bungees(); }
+                if (e.key.keysym.sym == SDLK_4) { set_up_scene_newton_cradle(); }
+                if (e.key.keysym.sym == SDLK_5) { set_up_scene_crate(); }
+                if (e.key.keysym.sym == SDLK_6) { set_up_scene_energy_test(); }
             } 
         }
         
         // update state of the simulation. Using 'mini-steps' for better resolution.
-        int num_steps_per_loop = 40;
         var_type duration = 1.0/(float)num_steps_per_loop;
         emitter_time_current -= duration; 
         emitter_time -= duration;
         if (emitter_time_current <= 0.0f && emitter_time >= 0.0) {
             emitter_time_current = emitter_time_per_ball;
             emit_ball(Vector2(200.0f, 100.0f));
-            //Ball ball;
-            //ball.pos = Vector2(200.0f, 100.0f);
-            //ball.vel = Vector2((float)(rand() % 40 - 20) * 0.3, 
-            //(float)(rand() % 40 - 20) * 0.3);
-            //ball.acc = Vector2(0, gravity);
-            //ball.radius = new_ball_avg_size +  float(rand() % 10) - 5.0;
-            //ball.mass_inverse = 1.0/ (3.14159 * pow(ball.radius, 2));
-            //ball.elasticity = 1.0;
-            //balls.push_back(ball);
-            ////std::cout << "ball created!\n";
         }
 
         // check if mouse is over any balls
@@ -821,22 +861,20 @@ int main()
         for (auto& ball : balls) {
             Vector2 dist_vector = ball.pos - mouse_pos;
             var_type dist = dist_vector.magnitude(); 
-            if (dist < ball.radius) {
-                ball_mouseover = &ball; 
-            }
+            if (dist < ball.radius) { ball_mouseover = &ball; }
         }
 
         for (Ball& ball : balls) {
-            ball.acc.y = gravity;
+            //ball.acc.y = gravity;
+            ball.acc.y = gravity * ball.mass_inverse;
         }
         for (int i = 0; i < num_steps_per_loop; i++) {
-            //TODO ball-ball collisions cause change in energy
             update(duration);
         }
         // render the simulation
         render(duration * num_steps_per_loop, io);
         // ensure frame rate is steady
-        //printf("ball[1] velocity: %f, %f\n", balls[1].vel.x, balls[1].vel.y);
+        // printf("ball[1] velocity: %f, %f\n", balls[1].vel.x, balls[1].vel.y);
         time_frame_duration = SDL_GetTicks64() - time_frame_start;
         if (time_frame_duration < SCREEN_TICK_PER_FRAME) {
             //Wait

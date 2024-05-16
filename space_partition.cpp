@@ -5,77 +5,63 @@
 #include "physics.hpp"
 #include "space_partition.hpp"
 
-////template<typedef T>
-//class SpacePartition {
-//public:
-//    SpacePartition(std::vector<Ball>& balls, var_type _x_max, var_type _y_max);
-//    void update();  // updates Ball* arrays 
-//
-//private:
-//    using BallptrArray = std::array<std::array<std::array<Ball*, 30>, 20>, 20>; 
-//    BallptrArray grid_ballptrs;
-//    std::vector<Ball>& balls; 
-//    var_type x_max, y_max;
-//    std::array<Ball*, 30>& get_nearby_balls(Vector2 pos);
-//};
-
-//template<typename T>
-//bool in_range(T x, T low, T high) {
-//    return (x >= low && x < high); 
-//}
-
 bool array_bound_check(int index, int size) {
     return (index >= 0 && index < size);
 }
 
-//template<typedef T>
 SpacePartition::SpacePartition(std::vector<Ball>& _balls, var_type _x_max, var_type _y_max) : 
-        neighbor_indexes{std::pair<unsigned int, unsigned int>(-1, -1)}, balls(_balls), x_max(_x_max), y_max(_y_max), grid_ballptrs{} 
+        balls(_balls), x_max(_x_max), y_max(_y_max),
+        cached_ballptrs{}, cached_neighbor_indexes{}
 {
-    // make sure to fill multidimensional array with NULLs 
     clear_grid_ballptrs();
-    y_max_index = grid_ballptrs.size();
-    x_max_index = grid_ballptrs[0].size();
+    y_max_index = cached_ballptrs.size();
+    x_max_index = cached_ballptrs[0].size();
+
+    //cache indexes of neighbors of each cell
+    for (int y = 0; y < y_max_index; y++) {
+        for (int x = 0; x < x_max_index; x++) {
+            get_neighbor_indexes(x, y, cached_neighbor_indexes[y][x]); 
+        }
+    }
 
     std::cout << "sp x_max_index, y_max_index = " << x_max_index << ", " <<  y_max_index << std::endl;
 }
 
-std::array<Ball*, 30 * 9>&
+std::array<Ball*, MAX_BALLS_PER_CELL * 9>&
 SpacePartition::get_nearby_balls(Vector2 _pos) {
-    //nearby_balls.fill(nullptr);
-    //nearby_balls[0] = nullptr;
-    using std::pair;
-    pair<int, int> index = get_index(_pos);
-    get_neighbor_indexes(index.first, index.second);
-    int i = 0;
-    for (auto index : neighbor_indexes) {
-        if (index.first == -1 || index.second == -1) break;
-        for (Ball* ball : grid_ballptrs[index.second][index.first]) {
-            if (ball == nullptr) break;  // assume remaining elements are nullptr as well
-            nearby_balls[i] = ball;
-            i++;
-        }
-    }
-    nearby_balls[i] = nullptr;  // this marks the end of the valid pointers
-    return nearby_balls;
+    std::pair<int, int> index = get_index(_pos);
+    return cached_ballptrs[index.second][index.first];
+}
+
+int
+SpacePartition::get_nearby_balls_count(Vector2 _pos) {  // number of valid balls in the array
+    std::pair<int, int> index = get_index(_pos);
+    return cached_num_ballptrs[index.second][index.first];
 }
 
 void
 SpacePartition::update() {
-    std::pair<int, int> index_grid(0, 0);
+    std::pair<int, int> index_ball(0, 0);
     clear_grid_ballptrs();
     for (Ball& ball : balls) {
-        index_grid = get_index(ball.pos); 
-        // now find the next nullptr element in the array, and write ball address to it
-        for (size_t i = 0; i < grid_ballptrs[0][0].size(); ++i) { 
-            if (grid_ballptrs[index_grid.second][index_grid.first][i] == nullptr) {
-                grid_ballptrs[index_grid.second][index_grid.first][i] = &ball;
-                break;
+        index_ball = get_index(ball.pos); //index of ball 
+        //get_neighbor_indexes(index_ball.first, index_ball.second);    
+        for (auto index_neighbor : cached_neighbor_indexes[index_ball.second][index_ball.first]) {
+            if (index_neighbor.first == -1 || index_neighbor.second == -1) {
+                continue; // probably can break;
             }
+            std::size_t& count_cached = cached_num_ballptrs[index_neighbor.second][index_neighbor.first];
+            if (count_cached + 1 
+                    >= cached_ballptrs[index_neighbor.second][index_neighbor.first].size()) {
+                std::cout << "ERROR, ball location cannot be cached" << std::endl;
+                continue;
+            }
+            cached_ballptrs[index_neighbor.second][index_neighbor.first][count_cached] = &ball;
+            count_cached++;
+            cached_ballptrs[index_neighbor.second][index_neighbor.first][count_cached] = nullptr;
         }
     }
 }
-
 
 std::pair<int, int> 
 SpacePartition::get_index(Vector2 _pos) {
@@ -92,11 +78,10 @@ SpacePartition::get_index(Vector2 _pos) {
 
 // puts answers in neighbor_indexes
 void
-SpacePartition::get_neighbor_indexes(int _x, int _y) {  
+SpacePartition::get_neighbor_indexes(int _x, int _y, std::array<std::pair<int, int>, 9>& neighbor_indexes ) {  
     int k = 0;
     int x_index = 0;
     int y_index = 0;
-    //printf("g_neighbors_indexes\n");
     for (int y = -1; y <= 1; ++y) {
         for (int x = -1; x <= 1; ++x) {
             x_index = _x + (int)x;
@@ -118,10 +103,8 @@ SpacePartition::get_neighbor_indexes(int _x, int _y) {
 
 void
 SpacePartition::clear_grid_ballptrs() {
-    for (auto& row : grid_ballptrs) {
-        for (auto& ballptr_array : row) {
-            ballptr_array.fill(nullptr);
-        }
+    for(auto& array_nums : cached_num_ballptrs) {
+        array_nums.fill(0);
     }
 }
 

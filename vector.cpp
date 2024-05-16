@@ -2,17 +2,19 @@
 #include <iostream>
 #include "vector.hpp"
 
+Vector2::Vector2() { }
 
+Vector2::Vector2(var_type a, var_type b): x(a), y(b) { }
 
 // addition
 Vector2 operator+(const Vector2& a, const Vector2& b) {
     return Vector2(a.x + b.x, a.y + b.y);
 }
 
-// subraction
-Vector2 operator-(const Vector2& a, const Vector2& b) {
-    return Vector2(a.x - b.x, a.y - b.y);
-}
+//// subraction
+//Vector2 operator-(const Vector2& a, const Vector2& b) {
+//    return Vector2(a.x - b.x, a.y - b.y);
+//}
 
 // unary minus aka negation
 Vector2 operator-(const Vector2& a) {
@@ -72,9 +74,9 @@ var_type Vector2::dot(const Vector2& a, const Vector2& b) {
     return a.x * b.x + a.y * b.y;     
 }
 
-var_type Vector2::magnitude() const {
-    return sqrt(pow(x,2.0) + pow(y, 2.0));
-}
+//var_type Vector2::magnitude() const {
+//    return sqrt(pow(x,2.0) + pow(y, 2.0));
+//}
 
 Vector2 Vector2::unit() const {
     Vector2 result;

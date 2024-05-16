@@ -1,6 +1,7 @@
 #ifndef VECTOR_HPP
 #define VECTOR_HPP
 #include<limits>
+#include <cmath>
 
 
 typedef float var_type;
@@ -11,15 +12,17 @@ public:
     var_type x;
     var_type y;
 
-    Vector2(var_type x0, var_type y0): x{x0}, y{y0} {}
-    Vector2(): x{0}, y{0} {}
+    Vector2(var_type x0, var_type y0);
+    Vector2();
 
     void    operator+=(const Vector2&); 
     void    operator-=(const Vector2&);
     void    operator*=(const var_type);
 
     var_type dot(const Vector2&) const; // dot product
-    var_type magnitude() const;
+    inline var_type magnitude() const {
+        return sqrt(pow(x,2.0) + pow(y, 2.0));
+    }
     Vector2 unit() const;
     Vector2 perpendicular() const; // get's vector perpendicular
 
@@ -27,7 +30,10 @@ public:
 };
 
 Vector2 operator-(const Vector2&);                   // unary minus
-Vector2 operator-(const Vector2&, const Vector2&);   // subtraction
+// subtraction
+inline Vector2 operator-(const Vector2& a, const Vector2& b) {
+    return Vector2(a.x - b.x, a.y - b.y);
+}
 Vector2 operator+(const Vector2&, const Vector2&);   // addition
 Vector2 operator*(const var_type, const Vector2&);   // scalar multiplication
 Vector2 operator/(const Vector2&, const var_type);

@@ -8,9 +8,10 @@ class Edge;
 
 class Ball {
 public:
+    enum class IntegrationMethod { explicit_euler, implicit_euler, explicit_midpoint };
     Vector2 pos;
     Vector2 vel;
-    Vector2 acc;
+    Vector2 acc;  // figured as constant acceleration value (due to gravity).
     //Vector2 acc_const;
     var_type radius;
     var_type mass_inverse;
@@ -18,16 +19,21 @@ public:
     Vector2 force_accumulator;
     Vector2 pos_old;
     static var_type restitution;
+    static IntegrationMethod integration_method;
     
     Ball(Vector2 pos, Vector2 vel, Vector2 acc,
         var_type radius, var_type mass_inverse, var_type elasticity);
-    Ball() {}
+    Ball();
     
-    void integrate(const var_type duration);
+    //void integrate(const var_type duration);
     void force_add(Vector2 force);  // adds force to force_accumulator
     // sequential collision checking
     void collides_ball(Ball& ball);  // delete?
     void collides_edge(const Edge& edge);
+    void integrate_explicit_euler(const var_type duration);
+    void integrate_implicit_euler(const var_type duration);
+    void integrate_explicit_midpoint(const var_type duration);
+private:
 };
 
 class Edge {
@@ -40,13 +46,6 @@ public:
 
 class Collision {
 public:
-    //Ball* ball0;
-    //Ball* ball1;
-    //Edge* edge;
-    //var_type penetration;
-    //Vector2 contact_normal;
-    //Vector2 velocity_seperating;
-
     static Vector2 reflect(const Vector2& v, const Edge& edge);
 };
 
@@ -167,8 +166,9 @@ public:
     ContactResolver(unsigned int iterations_max);
     // for fast look up of effected contacts
     std::unordered_map<Contact*, std::vector<Contact*>> contact_map;
-    void set_iterations(unsigned int iterations_max);
+    //void set_iterations(unsigned int iterations_max);
     void resolve_contacts(std::vector<Contact>& contacts, var_type duration);
+    int iterate_over_list_count;
 };
 
 

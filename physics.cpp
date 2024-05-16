@@ -7,8 +7,11 @@
 #include "sdl_init.hpp" // this allows draw functions to be called
 
 var_type Ball::restitution = 1.0;
+Ball::IntegrationMethod Ball::integration_method = Ball::IntegrationMethod::explicit_euler; 
 
 void spring_draw(Vector2 start, Vector2 end, var_type rest_length);
+
+Ball::Ball() { }
 
 Ball::Ball(Vector2 pos, Vector2 vel, Vector2 acc,
         var_type radius, var_type mass_inverse, var_type elasticity) 
@@ -19,20 +22,31 @@ Ball::Ball(Vector2 pos, Vector2 vel, Vector2 acc,
     force_accumulator = Vector2(0.0, 0.0);
 }
 
-void Ball::integrate(var_type duration) {
-    // save old position
+void Ball::integrate_explicit_euler(var_type duration) {
     pos_old = pos;
-    // determine acceleration from all combining all the forces acting on this ball.
-    //acc = mass_inverse * force_accumulator;
-    //acc = duration * (mass_inverse * force_accumulator);
-    //TODO acc has issue, it's a constant value. Force generators are not changing acc variable
-    vel = vel + duration * (acc + mass_inverse * force_accumulator);//acc;
-    //vel *= 0.99999F;  // apply damping
-    pos = pos + duration * vel;
-
-    // reduce magnitude of velocity to improve stability
-    //vel = powf(0.99995, duration) * vel;
     //force_accumulator = Vector2(0.0, 0.0);
+    pos = pos + duration * vel;
+    vel = vel + duration * (acc + mass_inverse * force_accumulator);//acc;
+}
+
+void Ball::integrate_implicit_euler(var_type duration) {
+    pos_old = pos;
+    //force_accumulator = Vector2(0.0, 0.0);
+    vel = vel + duration * (acc + mass_inverse * force_accumulator);//acc;
+    pos = pos + duration * vel;
+}
+
+void Ball::integrate_explicit_midpoint(var_type duration) {
+    pos_old = pos;
+    Vector2 k1 = duration * vel;
+    // predicted next position (predictor - corrector method, looks like explicit euler);
+    //Vector2 pos_next_pred = pos + k1;  
+    //TODO fix this
+    //force_accumulator = Vector2(0.0, 0.0);
+    Vector2 k2 = vel + duration * (acc + mass_inverse * force_accumulator);
+    pos = pos + (k1 + k2) / 2.0;
+    //vel = (k1 + k2) / 2.0;
+    vel = k2 / duration;
 }
 
 void Ball::collides_ball(Ball& b) {
@@ -397,64 +411,15 @@ Contact::resolve_velocity(var_type duration)
     ball[0]->vel += ball[0]->mass_inverse * impulse_per_mass_inverse;
     if (ball[1] && ball[1]->mass_inverse != 0.0) ball[1]->vel += - ball[1]->mass_inverse * impulse_per_mass_inverse;
 
-
-
-
-
-
-
-    //// lots of redundancy... reduce some?
-    //Ball a = *ball[0];
-    //Ball b = *ball[1];
-    //Vector2 pos_relative = b.pos - a.pos;
-    ////var_type penetration = a.radius + b.radius - pos_relative.magnitude();
-    // 
-    //if (penetration > 0) {
-    //    // objects are penetrating
-    //    // glancing aka 2d collision math (not the familiar 1d collision)
-    //    Vector2 new_vel(0.0, 0.0);
-    //    Vector2 b_new_vel(0.0, 0.0);
-    //    var_type mass = 1.0/a.mass_inverse;
-    //    var_type b_mass = 1.0/b.mass_inverse;
-    //    var_type mass_sum = mass + b_mass;
-    //    var_type dot_0 = Vector2::dot( a.vel - b.vel, a.pos - b.pos);
-    //    var_type dot_1 = Vector2::dot( b.vel - a.vel, b.pos - a.pos);
-    //    var_type distance_squared = pow(pos_relative.magnitude(), 2.0);
-    //    new_vel = a.vel - (2.0 * b_mass / mass_sum) * (dot_0 / distance_squared) * (a.pos - b.pos); 
-    //    b_new_vel = b.vel - (2.0 * mass / mass_sum) * (dot_1 / distance_squared) * (b.pos - a.pos); 
-    //    //new_vel = (mass * vel + b_mass * b.vel - b_mass * restitution * vel
-    //    //    + b_mass * restitution * b.vel) / ( mass + b_mass);
-    //    //b_new_vel = (mass * vel + b_mass * b.vel - mass * restitution * b.vel
-    //    //    + mass * restitution * vel) / ( mass + b_mass);
-    //    // assign new velocities
-    //    a.vel = new_vel;
-    //    b.vel = b_new_vel;
-    //    //// solve interpenetrations
-    //    // Vector2 delta   = b_mass * a.vel.unit() / mass_sum;
-    //    // Vector2 delta_b = mass * b.vel.unit() / mass_sum;
-    //    //a.pos += delta;
-    //    //b.pos += delta_b;
-
-
-
-    //    //std::cout << "howdy" << penetration << std::endl;
-    //}
-    //else {
-    //    //std::cout << "pen: " << penetration << std::endl;
-    //}
 }
 
 ContactResolver::ContactResolver(unsigned int iterations_max) : iterations_max(iterations_max)
 { 
     using std::array, std::unordered_map;
     iterations_count = 0;
+    iterate_over_list_count = 10;
     contact_map = {};
 }    
-
-void ContactResolver::set_iterations(unsigned int iterations_max)
-{
-    this->iterations_max = iterations_max;
-}
 
 void ContactResolver::resolve_contacts(std::vector<Contact>& contacts, var_type duration)
 {
@@ -496,17 +461,13 @@ void ContactResolver::resolve_contacts(std::vector<Contact>& contacts, var_type 
         contact_map[&contacts[i]].push_back(&contacts[i]);
     }
     
-    //using std::cout, std::endl;
-    //cout << "contact_map.size() = " << contact_map.size() << endl;
-    iterations_max =  15 *  contacts.size(); 
+    iterations_max =  iterate_over_list_count *  contacts.size(); 
     iterations_count = 0;
    
     //find lowest seperating velocity first
     var_type minimum = std::numeric_limits<var_type>::max();
     // find most negative seperating speed from all contacts
     Contact* contact_min = nullptr;  // contact minimum seperating speed (highest closing speed)
-
-    //int i = 0;
 
     while (iterations_count < iterations_max) { 
         
@@ -520,15 +481,6 @@ void ContactResolver::resolve_contacts(std::vector<Contact>& contacts, var_type 
             }
         }
         
-        //if (i >= 0 && i + 1 < (int)contacts.size()) {
-        //    i++;
-        //} else {
-        //    i = 0;
-        //}
-        //    
-        //minimum = contacts[i].seperating_speed;
-        //contact_min = &contacts[i];
-
         if (contact_min == nullptr) {
             return;
         }
@@ -545,6 +497,7 @@ void ContactResolver::resolve_contacts(std::vector<Contact>& contacts, var_type 
         // update interpenetration variable in contact list
         //Contact& contact = *contact_min; // garbage initial value
         for (Contact* contact1 : contact_map[contact_min]) {
+            //if (contact1 == contact_min) { continue; }
             Contact& contact = *contact1;
             if (contact.ball[0] == contact_min->ball[0] ) {
                 contact.penetration -= contact_min->movement[0].dot(contact.contact_normal);
@@ -560,13 +513,7 @@ void ContactResolver::resolve_contacts(std::vector<Contact>& contacts, var_type 
             }
             //// important, recalculating seperating speed of Contact
             contact.seperating_speed = contact.seperating_speed_calculate();
-            //if (contact.seperating_speed < minimum) {
-            //    minimum = contact.seperating_speed;
-            //    contact_min = contact1;
-            //    search_for_min = false; // little hack
-            //}
         }
-        //
          
         iterations_count++;
     }
@@ -759,7 +706,7 @@ CableLink::generate_contact(std::vector<Contact>& contacts, unsigned limit)
     Contact c;
     c.ball[0] = balls[0];
     c.ball[1] = balls[1];
-    c.restitution = 0.0; // TODO make variable later?
+    c.restitution = 0.0; //was 0 // TODO make variable later?
     c.contact_normal = (c.ball[1]->pos - c.ball[0]->pos).unit(); //reverse the normal
     c.movement[0] =  Vector2(0.0, 0.0);
     c.movement[1] =  Vector2(0.0, 0.0);
