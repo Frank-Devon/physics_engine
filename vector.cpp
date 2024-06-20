@@ -2,12 +2,18 @@
 #include <iostream>
 #include "vector.hpp"
 
-Vector2::Vector2() { }
+template <typename T>
+Vector2<T>::Vector2() {
+    x = T();
+    y = T();
+}
 
-Vector2::Vector2(var_type a, var_type b): x(a), y(b) { }
+template <typename T>
+Vector2<T>::Vector2(T a, T b): x(a), y(b) { }
 
 // addition
-Vector2 operator+(const Vector2& a, const Vector2& b) {
+template <typename T>
+Vector2<T> operator+(const Vector2<T>& a, const Vector2<T>& b) {
     return Vector2(a.x + b.x, a.y + b.y);
 }
 
@@ -17,68 +23,79 @@ Vector2 operator+(const Vector2& a, const Vector2& b) {
 //}
 
 // unary minus aka negation
-Vector2 operator-(const Vector2& a) {
+template <typename T>
+Vector2<T> operator-(const Vector2<T>& a) {
     return Vector2(-a.x, -a.y);
 }
 
 // scalar multiplication
-Vector2 operator*(const var_type a, const Vector2& b) {
+template <typename T>
+//Vector2<T> operator*(const T a, const T& b) {
+Vector2<T> operator*(const T a, const Vector2<T>& b) {
     return Vector2(a * b.x, a * b.y);
 }
 
 // scalar division
-Vector2 operator/(const Vector2& a, const var_type b) {
+template <typename T>
+Vector2<T> operator/(const Vector2<T>& a, const T b) {
     return Vector2(a.x / b, a.y / b);
 }
 
 // addition assignment
-void Vector2::operator+=(const Vector2& a) {
+template <typename T>
+void Vector2<T>::operator+=(const Vector2& a) {
     x += a.x;
     y += a.y;
 }
 
 // subtraction assignment
-void Vector2::operator-=(const Vector2& a) {
+template <typename T>
+void Vector2<T>::operator-=(const Vector2& a) {
     x -= a.x;
     y -= a.y;
 }
 
 // multiplication assignment
-void Vector2::operator*=(const var_type a) {
+template <typename T>
+void Vector2<T>::operator*=(const T a) {
     x = x * a;
     y = y * a;
 }
 
-
-bool operator!=(const Vector2& a, const Vector2& b) {
+template <typename T>
+bool operator!=(const Vector2<T>& a, const Vector2<T>& b) {
     //return a.x != b.x || a.y != b.y; 
     return !(a.x == b.x && a.y == b.y); 
 }
 
-bool operator==(const Vector2& a, const Vector2& b) {
+template <typename T>
+bool operator==(const Vector2<T>& a, const Vector2<T>& b) {
     return a.x == b.x && a.y == b.y; 
 }
 
-std::ostream& operator<<(std::ostream& output, const Vector2& v) {
+template <typename T>
+std::ostream& operator<<(std::ostream& output, const Vector2<T>& v) {
     output << '(' << v.x << ", " << v.y << ") ";
     return output;
 }
 
-var_type Vector2::dot(const Vector2& a) const {
-    var_type sum = 0.0;
+template <typename T>
+T Vector2<T>::dot(const Vector2& a) const {
+    T sum = 0.0;
     sum = x * a.x + y * a.y;
     return sum;
 }
 
-var_type Vector2::dot(const Vector2& a, const Vector2& b) {
+template <typename T>
+T Vector2<T>::dot(const Vector2& a, const Vector2& b) {
     return a.x * b.x + a.y * b.y;     
 }
 
 //var_type Vector2::magnitude() const {
 //    return sqrt(pow(x,2.0) + pow(y, 2.0));
 //}
-
-Vector2 Vector2::unit() const {
+template <typename T>
+Vector2<T> Vector2<T>::unit() const {
     Vector2 result;
     var_type magnitude = this->magnitude();
     result.x = x / magnitude;
@@ -86,7 +103,8 @@ Vector2 Vector2::unit() const {
     return result;
 }
 
-Vector2 Vector2::perpendicular() const {
+template <typename T>
+Vector2<T> Vector2<T>::perpendicular() const {
     // if v isn't null, will find the vector perpendicular to (this - v)
     // maybe this shouldn't be used? and should have no parameters
     //Vector2 v0;
@@ -106,8 +124,24 @@ Vector2 Vector2::perpendicular() const {
     return result;
 }
 
-var_type distance(const Vector2& a, const Vector2& b) {
-    Vector2 pos_relative = a - b; 
+template <typename T>
+T distance(const Vector2<T>& a, const Vector2<T>& b) {
+    Vector2<T> pos_relative = a - b; 
     return pos_relative.magnitude();
 }
 
+template class Vector2<int>;
+template class Vector2<float>;
+template class Vector2<double>;
+template Vector2<int> operator-(const Vector2<int>&);
+template Vector2<float> operator-(const Vector2<float>&);
+template Vector2<double> operator-(const Vector2<double>&);
+template Vector2<int> operator+(const Vector2<int>&, const Vector2<int>&);
+template Vector2<float> operator+(const Vector2<float>&, const Vector2<float>&);
+template Vector2<double> operator+(const Vector2<double>&, const Vector2<double>&);
+template bool operator==(const Vector2<int>&, const Vector2<int>&);
+template bool operator==(const Vector2<float>&, const Vector2<float>&);
+template bool operator==(const Vector2<double>&, const Vector2<double>&);
+template Vector2<int> operator*(const int, const Vector2<int>&);   // scalar multiplication
+template Vector2<float> operator*(const float, const Vector2<float>&);   // scalar multiplication
+template Vector2<double> operator*(const double, const Vector2<double>&);   // scalar multiplication

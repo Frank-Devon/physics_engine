@@ -4,160 +4,166 @@
 #include <unordered_map>
 #include "vector.hpp"
 
-class Edge;
+template <typename T = var_type> class Edge;
 
+template <typename T = var_type>
 class Ball {
 public:
     enum class IntegrationMethod { explicit_euler, implicit_euler, explicit_midpoint };
-    Vector2 pos;
-    Vector2 vel;
-    Vector2 acc;  // figured as constant acceleration value (due to gravity).
+    Vector2<T> pos;
+    Vector2<T> vel;
+    Vector2<T> acc;  // figured as constant acceleration value (due to gravity).
     //Vector2 acc_const;
     var_type radius;
     var_type mass_inverse;
     var_type elasticity;
-    Vector2 force_accumulator;
-    Vector2 pos_old;
+    Vector2<T> force_accumulator;
+    Vector2<T> pos_old;
     static var_type restitution;
     static IntegrationMethod integration_method;
     
-    Ball(Vector2 pos, Vector2 vel, Vector2 acc,
-        var_type radius, var_type mass_inverse, var_type elasticity);
+    Ball(Vector2<T> pos, Vector2<T> vel, Vector2<T> acc,
+        T radius, T mass_inverse, T elasticity);
     Ball();
     
     //void integrate(const var_type duration);
-    void force_add(Vector2 force);  // adds force to force_accumulator
+    void force_add(Vector2<T> force);  // adds force to force_accumulator
     // sequential collision checking
     void collides_ball(Ball& ball);  // delete?
-    void collides_edge(const Edge& edge);
-    void integrate_explicit_euler(const var_type duration);
-    void integrate_implicit_euler(const var_type duration);
-    void integrate_explicit_midpoint(const var_type duration);
+    void collides_edge(const Edge<T>& edge);
+    void integrate_explicit_euler(const T duration);
+    void integrate_implicit_euler(const T duration);
+    void integrate_explicit_midpoint(const T duration);
 private:
 };
 
+template <typename T>
 class Edge {
 public:
-    Vector2 start, end;
-    Vector2 normal, tangent;  // derived from start and end. calc's stored here.
+    Vector2<T> start, end;
+    Vector2<T> normal, tangent;  // derived from start and end. calc's stored here.
 
-    Edge(Vector2 start, Vector2 end);
+    Edge(Vector2<T> start, Vector2<T> end);
 };
 
+template <typename T = var_type>
 class Collision {
 public:
-    static Vector2 reflect(const Vector2& v, const Edge& edge);
+    static Vector2<T> reflect(const Vector2<T>& v, const Edge<T>& edge);
 };
 
-
+template <typename T = var_type>
 class ParticleForceGenerator {
 public:
     virtual ~ParticleForceGenerator();
-    virtual void update(Ball* ball, var_type duration) = 0; 
-    virtual void draw(Ball* ball, var_type duration) = 0;
+    virtual void update(Ball<T>* ball, T duration) = 0; 
+    virtual void draw(Ball<T>* ball) = 0;
 };
 
-
-class SpringForceGenerator : public ParticleForceGenerator {
+template <typename T = var_type>
+class SpringForceGenerator : public ParticleForceGenerator<T> {
 private:
-    Ball* other_ball;
-    var_type rest_length;
-    var_type spring_constant;
+    Ball<T>* other_ball;
+    T rest_length;
+    T spring_constant;
 public:
-    SpringForceGenerator(Ball* other_ball, var_type rest_length, var_type spring_constant);
-    virtual void update(Ball* ball, var_type duration);
-    virtual void draw(Ball* ball, var_type duration);
+    SpringForceGenerator(Ball<T>* other_ball, T rest_length, T spring_constant);
+    virtual void update(Ball<T>* ball, T duration);
+    virtual void draw(Ball<T>* ball);
 };
 
-
-class SpringAnchoredForceGenerator : public ParticleForceGenerator {
+template <typename T = var_type>
+class SpringAnchoredForceGenerator : public ParticleForceGenerator<T> {
 private:
-    Vector2 anchor_position;
-    var_type rest_length;
-    var_type spring_constant;
+    Vector2<T> anchor_position;
+    T rest_length;
+    T spring_constant;
 public:
-    SpringAnchoredForceGenerator(Vector2 anchor_position, var_type rest_length, var_type spring_constant);
-    virtual void update(Ball* ball, var_type duration);
-    virtual void draw(Ball* ball, var_type duration);
+    SpringAnchoredForceGenerator(Vector2<T> anchor_position, T rest_length, T spring_constant);
+    virtual void update(Ball<T>* ball, T duration); // TODO maybe duration should have diff type??
+    virtual void draw(Ball<T>* ball);
 };
 
-class BungeeForceGenerator : public ParticleForceGenerator {
+template <typename T = var_type>
+class BungeeForceGenerator : public ParticleForceGenerator<T> {
 private:
-    Ball* other_ball;  // anchor could be attached to another ball?
-    var_type rest_length;
-    var_type spring_constant;
+    Ball<T>* other_ball;  // anchor could be attached to another ball?
+    T rest_length;
+    T spring_constant;
 public:
-    BungeeForceGenerator(Ball* other_ball, var_type rest_length, 
-        var_type spring_constant);
-    virtual void update(Ball* ball, var_type duration);
-    virtual void draw(Ball* ball, var_type duration);
+    BungeeForceGenerator(Ball<T>* other_ball, T rest_length, T spring_constant);
+    virtual void update(Ball<T>* ball, T duration);
+    virtual void draw(Ball<T>* ball);
 };
 
-class BungeeAnchoredForceGenerator : public ParticleForceGenerator {
+template <typename T = var_type>
+class BungeeAnchoredForceGenerator : public ParticleForceGenerator<T> {
 private:
-    Vector2 anchor_position;  // anchor could be attached to another ball?
-    var_type rest_length;
-    var_type spring_constant;
+    Vector2<T> anchor_position;  // anchor could be attached to another ball?
+    T rest_length;
+    T spring_constant;
 public:
-    BungeeAnchoredForceGenerator(Vector2 anchor_position, var_type rest_length, 
-        var_type spring_constant);
-    virtual void update(Ball* ball, var_type duration);
-    virtual void draw(Ball* ball, var_type duration);
+    BungeeAnchoredForceGenerator(Vector2<T> anchor_position, T rest_length, T spring_constant);
+    virtual void update(Ball<T>* ball, T duration);
+    virtual void draw(Ball<T>* ball);
 };
 
-
-class GravityForceGenerator : public ParticleForceGenerator { 
+template <typename T = var_type>
+class GravityForceGenerator : public ParticleForceGenerator<T> { 
 private:
-    Vector2 force;
+    Vector2<T> force;
 public:
-    GravityForceGenerator(Vector2 force);
-    virtual void update(Ball* ball, var_type duration);
-    virtual void draw(Ball* ball, var_type duration);
+    GravityForceGenerator(Vector2<T> force);
+    virtual void update(Ball<T>* ball, T duration);
+    virtual void draw(Ball<T>* ball);
 
 };
 
-
+template <typename T = var_type>
 class ParticleForceRegistry {
 private:
     struct ForceRegistration
     {
-        Ball* ball;  //TODO have ball just be another member of ParticleForceGenerator derived types
-        ParticleForceGenerator* force_generator;
+        //TODO have ball just be another member of ParticleForceGenerator derived types?
+        Ball<T>* ball;  
+        ParticleForceGenerator<T>* force_generator;
     };
     std::vector<ForceRegistration> registrations;
 
 public:
     ParticleForceRegistry();
     ~ParticleForceRegistry();
-    void update_all(var_type duration);
-    void draw_all(var_type duration);
-    void add(Ball* ball, ParticleForceGenerator* fg);
-    void remove(Ball* ball, ParticleForceGenerator* fg);
+    void update_all(T duration);
+    void draw_all();
+    void add(Ball<T>* ball, ParticleForceGenerator<T>* fg);
+    void remove(Ball<T>* ball, ParticleForceGenerator<T>* fg);
     void clear();
 };
 
 
 //start using this to resolve collisions and other hard constraints
+template <typename T = var_type>
 class Contact {
 public:
     Contact();
-    Contact(Ball* b0, Ball* b1, var_type penetration, var_type restitution);
-    Ball* ball[2];
-    Vector2 contact_normal;  // Contact normal
-    var_type restitution;
-    var_type penetration;
-    Vector2 movement[2];
-    var_type seperating_speed;  // save result of seperating_speed_calculate 
-    var_type seperating_speed_calculate() const;
-    var_type interpenetration_calculate() const;
-    void resolve(var_type duration);
+    Contact(Ball<T>* b0, Ball<T>* b1, T penetration, T restitution);
+    Ball<T>* ball[2];
+    Vector2<T> contact_normal;  // Contact normal
+    T restitution;
+    T penetration;
+    Vector2<T> movement[2];
+    T seperating_speed;  // save result of seperating_speed_calculate 
+    T seperating_speed_calculate() const;
+    T interpenetration_calculate() const;
+    void resolve(T duration);
 protected:
 private:
-    void resolve_interpenetration(var_type duration);  
-    void resolve_velocity(var_type duration);
+    void resolve_interpenetration(T duration);  
+    void resolve_velocity(T duration);
 };
 
 
+template <typename T = var_type>
 class ContactResolver { 
 protected:
     unsigned int iterations_max;
@@ -165,102 +171,171 @@ protected:
 public:
     ContactResolver(unsigned int iterations_max);
     // for fast look up of effected contacts
-    std::unordered_map<Contact*, std::vector<Contact*>> contact_map;
+    std::unordered_map<Contact<T>*, std::vector<Contact<T>*>> contact_map;
     //void set_iterations(unsigned int iterations_max);
-    void resolve_contacts(std::vector<Contact>& contacts, var_type duration);
+    void resolve_contacts(std::vector<Contact<T>>& contacts, T duration);
     int iterate_over_list_count;
 };
 
-
+template <typename T = var_type>
 class ContactGenerator {
 public:
-    virtual unsigned int generate_contact(std::vector<Contact>& contacts, unsigned limit) = 0;
+    virtual unsigned int generate_contact(std::vector<Contact<T>>& contacts, unsigned limit) = 0;
     virtual void draw() = 0;
     // constraints have 1 particle connected to an anchor point. if the user is 
     // controlling the position of a ball connected to a constraint, then the contact will
     // never be resolved and it can screw up the contact resolver
-    virtual bool disable_generation(Ball* ball) const = 0; 
+    virtual bool disable_generation(Ball<T>* ball) const = 0; 
     virtual ~ContactGenerator();
     //virtual var_type length_current_calculate() const = 0;
 };
 
-
-class ParticleLink : public ContactGenerator {
+template <typename T = var_type>
+class ParticleLink : public ContactGenerator<T> {
 public:
-    Ball* balls[2];
-    bool disable_generation(Ball* _ball) const;
+    Ball<T>* balls[2];
+    bool disable_generation(Ball<T>* _ball) const;
 protected:
-    ParticleLink(Ball* ball0, Ball* ball1);
-    var_type length_current_calculate() const;
+    ParticleLink(Ball<T>* ball0, Ball<T>* ball1);
+    T length_current_calculate() const;
 };
 
-
-class ParticleConstraint : public ContactGenerator {
+template <typename T = var_type>
+class ParticleConstraint : public ContactGenerator<T> {
 public:
-    Ball* ball;
-    Vector2 anchor;
-    bool disable_generation(Ball* _ball) const;
+    Ball<T>* ball;
+    Vector2<T> anchor;
+    bool disable_generation(Ball<T>* _ball) const;
 protected:
-    ParticleConstraint(Ball* ball, Vector2 anchor);
-    var_type length_current_calculate() const;
+    ParticleConstraint(Ball<T>* ball, Vector2<T> anchor);
+    T length_current_calculate() const;
 };
 
-
-class RodLink : public ParticleLink {
+template <typename T = var_type>
+class RodLink : public ParticleLink<T> {
 public:
-    var_type length;
-    RodLink(var_type length, Ball* ball0, Ball* ball1);
-    virtual unsigned int generate_contact(std::vector<Contact>& contacts, unsigned limit);
+    T length;
+    RodLink(T length, Ball<T>* ball0, Ball<T>* ball1);
+    virtual unsigned int generate_contact(std::vector<Contact<T>>& contacts, unsigned limit);
     virtual void draw();
 };
 
-class RodConstraint : public ParticleConstraint {
+template <typename T = var_type>
+class RodConstraint : public ParticleConstraint<T> {
 public:
-    var_type length;
-    RodConstraint(var_type length, Ball* ball0, Vector2 anchor);
-    virtual unsigned int generate_contact(std::vector<Contact>& contacts, unsigned limit);
+    T length;
+    RodConstraint(T length, Ball<T>* ball0, Vector2<T> anchor);
+    virtual unsigned int generate_contact(std::vector<Contact<T>>& contacts, unsigned limit);
     virtual void draw();
 };
 
-class CableLink : public ParticleLink {
+template <typename T = var_type>
+class CableLink : public ParticleLink<T> {
 public:
-    var_type length_max;
-    CableLink(var_type length_max, Ball* ball0, Ball* ball1);
-    virtual unsigned int generate_contact(std::vector<Contact>& contacts, unsigned limit);
+    T length_max;
+    CableLink(T length_max, Ball<T>* ball0, Ball<T>* ball1);
+    virtual unsigned int generate_contact(std::vector<Contact<T>>& contacts, unsigned limit);
     virtual void draw();
 };
 
 //class
-
-class CableConstraint : public ParticleConstraint {
+template <typename T = var_type>
+class CableConstraint : public ParticleConstraint<T> {
 public:
-    var_type length_max;
-    CableConstraint(var_type length_max, Ball* ball, Vector2 anchor);
-    virtual unsigned int generate_contact(std::vector<Contact>& contacts, unsigned limit);
+    T length_max;
+    CableConstraint(T length_max, Ball<T>* ball, Vector2<T> anchor);
+    virtual unsigned int generate_contact(std::vector<Contact<T>>& contacts, unsigned limit);
     virtual void draw();
 };
 
-class PhysicsWorld {
-public:
-    std::vector<Ball> balls;                       
-    std::vector<Edge> edges;                                      
-    std::vector<Ball> balls_fake;
-    std::vector<Contact> contacts;
-    std::vector<ContactGenerator*> contact_generators;
-    Ball* ball_mouseover;
-    Ball* ball_selected;
-    var_type ball_selected_mass_inverse;
-    //Ball ball_selected_concrete;             
-    ParticleForceRegistry particle_force_registry; 
-    ContactResolver contact_resolver;
+//class PhysicsWorld {
+//public:
+//    std::vector<Ball> balls;                       
+//    std::vector<Edge> edges;                                      
+//    std::vector<Ball> balls_fake;
+//    std::vector<Contact> contacts;
+//    std::vector<ContactGenerator*> contact_generators;
+//    Ball* ball_mouseover;
+//    Ball* ball_selected;
+//    var_type ball_selected_mass_inverse;
+//    //Ball ball_selected_concrete;             
+//    ParticleForceRegistry particle_force_registry; 
+//    ContactResolver contact_resolver;
+//
+//    PhysicsWorld();
+//    PhysicsWorld(std::string file_name);
+//    ~PhysicsWorld();
+//
+//};
 
-    PhysicsWorld();
-    PhysicsWorld(std::string file_name);
-    ~PhysicsWorld();
+template <typename T = var_type>
+void spring_draw(Vector2<T> start, Vector2<T> end, T rest_length);
 
-};
 
-void spring_draw(Vector2 start, Vector2 end, var_type rest_length);
+
+
+//start
+
+extern template class Ball<double>;
+extern template class Edge<double>;
+extern template class Collision<double>;
+extern template class ParticleForceGenerator<double>;
+extern template class SpringForceGenerator<double>;
+extern template class SpringAnchoredForceGenerator<double>;
+extern template class BungeeForceGenerator<double>;
+extern template class BungeeAnchoredForceGenerator<double>;
+extern template class GravityForceGenerator<double>;
+extern template class ParticleForceRegistry<double>;
+extern template class Contact<double>;
+extern template class ContactResolver<double>;
+extern template class ContactGenerator<double>;
+extern template class ParticleLink<double>;
+extern template class ParticleConstraint<double>;
+extern template class RodLink<double>;
+extern template class RodConstraint<double>;
+extern template class CableLink<double>;
+extern template class CableConstraint<double>;
+extern template void spring_draw<double>(Vector2<double> start, Vector2<double> end, double rest_length);
+
+extern template class Ball<float>;
+extern template class Edge<float>;
+extern template class Collision<float>;
+extern template class ParticleForceGenerator<float>;
+extern template class SpringForceGenerator<float>;
+extern template class SpringAnchoredForceGenerator<float>;
+extern template class BungeeForceGenerator<float>;
+extern template class BungeeAnchoredForceGenerator<float>;
+extern template class GravityForceGenerator<float>;
+extern template class ParticleForceRegistry<float>;
+extern template class Contact<float>;
+extern template class ContactResolver<float>;
+extern template class ContactGenerator<float>;
+extern template class ParticleLink<float>;
+extern template class ParticleConstraint<float>;
+extern template class RodLink<float>;
+extern template class RodConstraint<float>;
+extern template class CableLink<float>;
+extern template class CableConstraint<float>;
+extern template void spring_draw<float>(Vector2<float> start, Vector2<float> end, float rest_length);
+
+extern template void spring_draw<int>(Vector2<int> start, Vector2<int> end, int rest_length);
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 #endif

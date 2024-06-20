@@ -15,7 +15,7 @@ OPT=-O3
 # generate files that encode make rules for the .h dependencies
 #DEPFLAGS=-MP -MD
 # automatically add the -I onto each include directory
-CFLAGS=-Wall -Werror -g $(foreach D,$(INCDIRS),-I$(D)) $(OPT) $(DEPFLAGS)
+CFLAGS=-std=c++20 -Wall -Werror -g $(foreach D,$(INCDIRS),-I$(D)) $(OPT) $(DEPFLAGS)
 
 # for-style iteration (foreach) and regular expression completions (wildcard)
 CFILES=$(foreach D,$(CODEDIRS),$(wildcard $(D)/*.cpp))
